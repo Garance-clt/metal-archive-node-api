@@ -10,6 +10,7 @@ export function parseBand(html: string, id: string): Band {
     id,
     name: $("h1.band_name > a").text().trim(),
     country: txt("Country of origin"),
+    location: txt("Location"),
     formed: Number(txt("Formed in")),
     status: txt("Status"),
     genre: txt("Genre"),
@@ -22,53 +23,62 @@ export function parseBand(html: string, id: string): Band {
 
 /* -------- Discographie (résumé) -------- */
 function parseDiscog($: CheerioAPI): ReleaseSummary[] {
-  return $("table.discog tbody tr")
+  return $("div#band_tab_discography table.discog tbody tr") // <— +sélecteur plus sûr
     .map((_, tr) => {
-      const row = $(tr); // ligne de la table que l’on traite
-      const a = row.find("td").first().find("a");
-
-      const url = a.attr("href")!;
-      const id = url.match(/(\d+)(?:\D*$)/)?.[1] ?? "0"; // dernier nombre de l’URL
-
+      const cells = $(tr).find("td");
+      const a = cells.eq(0).find("a");
       return {
-        id,
+        id: a.attr("href")!.match(/(\d+)(?:\D*$)/)![1],
+        url: a.attr("href")!,
         title: a.text().trim(),
-        url,
-        type: row.find("td.typeCol").text().trim(), // type de la sortie
-        year: Number(row.find("td.yearCol").text().trim()),
+        type: cells.eq(1).text().trim(),
+        year: Number(cells.eq(2).text().trim()),
       };
     })
     .get();
 }
 
-/* -------- Membres -------- */
 function parseMembers($: CheerioAPI): Member[] {
-  const res: Member[] = [];
+  const members: Member[] = [];
 
-  $("#band_members table.lineupTable").each((_, tbl) => {
-    const header = $(tbl)
-      .prevAll("tr.lineupHeaders")
-      .first()
-      .text()
-      .toLowerCase();
-    const status: Member["status"] = header.includes("current")
-      ? "current"
-      : header.includes("live")
-      ? "live"
-      : "past";
-
-    $(tbl)
-      .find("tr.lineupRow")
-      .each((_, tr) => {
-        const a = $(tr).find("a.bold");
-        res.push({
-          name: a.text().trim(),
-          url: a.attr("href")!,
-          role: $(tr).find("td").eq(1).text().replace(/\s+/g, " ").trim(),
-          status,
-        });
+  /** utilitaire commun à chaque onglet */
+  const grab = (tabSel: string, status: Member["status"]) => {
+    $(`${tabSel} table.lineupTable tr.lineupRow`).each((_, tr) => {
+      const row = $(tr);
+      const a = row.find("a.bold");
+      members.push({
+        status,
+        name: a.text().trim(),
+        url: a.attr("href") ?? "",
+        /** ex. "Guitars (1988-1990), Bass (1990)" → espaces normalisés */
+        role: row.find("td").eq(1).text().replace(/\s+/g, " ").trim(),
       });
-  });
+    });
+  };
 
-  return res;
+  /* --- onglets explicites --- */
+  grab("#band_tab_members_current", "current"); // « Current » ou « Last known »
+  grab("#band_tab_members_live", "live");
+  grab("#band_tab_members_past", "past");
+
+  /* --- cas extrême : aucun des trois onglets ----
+   * (certains groupes très vieux n’ont qu’un « Complete lineup »)
+   */
+  if (!members.length) {
+    $("#band_tab_members_all table.lineupTable").each((_, tbl) => {
+      let status: Member["status"] = "past"; // défaut
+      $(tbl)
+        .prevAll("tr.lineupHeaders") // groupe « Last / Current / Past »
+        .first()
+        .text()
+        .toLowerCase()
+        .includes("current")
+        ? (status = "current")
+        : undefined;
+
+      grab(`#${$(tbl).attr("id")}`, status); // même logique que ci-dessus
+    });
+  }
+
+  return members;
 }

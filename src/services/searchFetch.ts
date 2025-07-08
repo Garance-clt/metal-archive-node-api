@@ -111,9 +111,10 @@ export async function searchBands(q: string): Promise<BandResult[]> {
   const out = rows.flatMap((r) => {
     const a = pickAnchor(r[0]);
     if (!a) return [];
+
     return [
       {
-        type: "band",
+        type: "band" as const,
         id: a.id,
         name: a.txt,
         genre: r[1].trim(),
@@ -137,7 +138,7 @@ export async function searchArtists(q: string): Promise<ArtistResult[]> {
     if (!a) return [];
     return [
       {
-        type: "artist",
+        type: "artist" as const,
         id: a.id,
         name: a.txt,
         realName: r[1].trim() || null,
@@ -162,7 +163,7 @@ export async function searchAlbums(q: string): Promise<AlbumResult[]> {
     if (!a || !a.txt.toLowerCase().includes(qL)) return [];
     return [
       {
-        type: "album",
+        type: "album" as const,
         id: a.id,
         title: a.txt,
         band: load(r[1])("a").text().trim(),
@@ -187,7 +188,7 @@ export async function searchSongs(q: string): Promise<SongResult[]> {
     if (!a || !a.txt.toLowerCase().includes(qL)) return [];
     return [
       {
-        type: "song",
+        type: "song" as const,
         id: a.id,
         title: a.txt,
         band: load(r[1])("a").text().trim(),

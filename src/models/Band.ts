@@ -17,6 +17,7 @@ export interface Band {
   id: string;
   name: string;
   country: string;
+  location: string | null;
   formed: number;
   status: string;
   genre: string;
