@@ -1,126 +1,202 @@
+/* ------------------------------------------------------------------
+ *  Metal-Archives « lazy search » – bands & artists immédiats,
+ *  albums / songs au clic.  Logs détaillés + pagination paral­lélisée
+ * ----------------------------------------------------------------- */
+
 import { load } from "cheerio";
+import pLimit from "p-limit";
 import { fetchWithCache } from "./fetchWithCache.js";
 
-const TTL = 12 * 60 * 60 * 1_000; // 12 h ­– tu peux ajuster
+/* --------- réglages généraux --------- */
+const TTL = 6 * 60 * 60_000; // 6 h de cache
+const PAGE = 500; // max accepté par l’API
+const MAX_HITS = 600; // stop DL quand assez (songs)
+const CONCURRENCY = 6; // appels parallèles
+const LIMIT_ROWS = 5_000; // sécurité anti-boucle infinie
+const ROOT = "https://www.metal-archives.com/search";
 
-/* ---------- Typage des résultats ---------- */
-export type Result =
-  | {
-      type: "band";
-      id: string;
-      name: string;
-      country: string | null;
-      genre: string;
-    }
-  | {
-      type: "artist";
-      id: string;
-      name: string;
-      realName: string | null;
-      country: string | null;
-    }
-  | { type: "album"; id: string; title: string; band: string; year: number }
-  | {
-      type: "song";
-      id: string;
-      title: string;
-      band: string;
-      album: string;
-      year: number;
-    };
+const limit = pLimit(CONCURRENCY);
 
-/* ---------- Recherche générique ---------- */
-export async function siteSearch(q: string): Promise<Result[]> {
-  const encoded = encodeURIComponent(q);
+/* ------------ types de résultats ------------ */
+export type BandResult = {
+  type: "band";
+  id: string;
+  name: string;
+  country: string | null;
+  genre: string;
+};
+export type ArtistResult = {
+  type: "artist";
+  id: string;
+  name: string;
+  realName: string | null;
+  country: string | null;
+};
+export type AlbumResult = {
+  type: "album";
+  id: string;
+  title: string;
+  band: string;
+  year: number;
+};
+export type SongResult = {
+  type: "song";
+  id: string;
+  title: string;
+  band: string;
+  album: string;
+  year: number;
+};
 
-  const endpoints = {
-    band: `https://www.metal-archives.com/search/ajax-band-search/?field=name&query=${encoded}`,
-    artist: `https://www.metal-archives.com/search/ajax-artist-search/?field=alias&query=${encoded}`,
-    album: `https://www.metal-archives.com/search/ajax-album-search/?field=title&query=${encoded}`,
-    song: `https://www.metal-archives.com/search/ajax-song-search/?field=title&query=${encoded}`,
-  };
+export type Result = BandResult | ArtistResult | AlbumResult | SongResult;
 
-  // 1. appels parallèles
-  const [bandsJ, artistsJ, albumsJ, songsJ] = await Promise.all(
-    Object.values(endpoints).map((u) => fetchWithCache(u, TTL))
-  ).then((raw) => raw.map((text) => JSON.parse(text)));
+/* --------------------------------------------------------------
+ *  getRows – télécharge *toutes* les pages JSON pour un “kind”.
+ *  • 1ʳᵉ page → total → génération du reste.
+ *  • appels parallèles limités (p-limit).
+ *  • early-exit pour ‘song’ quand MAX_HITS atteint.
+ * ------------------------------------------------------------- */
+async function getRows(
+  base: string,
+  kind: "band" | "artist" | "album" | "song"
+): Promise<any[]> {
+  console.time(`[${kind}] fetch`);
+  const rows: any[] = [];
 
-  // 2. parsing spécifique
-  return [
-    ...parseBandResults(bandsJ),
-    ...parseArtistResults(artistsJ),
-    ...parseAlbumResults(albumsJ),
-    ...parseSongResults(songsJ),
-  ];
+  /* ---- page 0 ---- */
+  const url0 = `${base}&iDisplayStart=0&iDisplayLength=${PAGE}&sEcho=1`;
+  const first = JSON.parse(await fetchWithCache(url0, TTL));
+  if (first.aaData?.length) rows.push(...first.aaData);
+
+  const total = first.iTotalRecords ?? rows.length;
+  const pages = Math.min(Math.ceil(total / PAGE), Math.ceil(LIMIT_ROWS / PAGE));
+
+  const tasks: Promise<void>[] = [];
+  for (let p = 1; p < pages; p++) {
+    const offset = p * PAGE;
+    const url = `${base}&iDisplayStart=${offset}&iDisplayLength=${PAGE}&sEcho=1`;
+
+    tasks.push(
+      limit(async () => {
+        const json = JSON.parse(await fetchWithCache(url, TTL));
+        if (json.aaData?.length) rows.push(...json.aaData);
+      })
+    );
+  }
+
+  for (const t of tasks) {
+    await t;
+    if (kind === "song" && rows.length >= MAX_HITS) break; // early-exit
+  }
+
+  console.timeEnd(`[${kind}] fetch`);
+  console.log(`   ↳ ${rows.length} raw rows (${kind})`);
+  return rows;
 }
 
-/* ---------- Parseurs ---------- */
-function parseBandResults(json: any): Result[] {
-  return json.aaData.map((row: string[]): Result => {
-    // row[0] = '<a href="https://www.metal-archives.com/bands/Entombed/414">Entombed</a>'
-    const $a = load(row[0])("a");
-    const url = $a.attr("href")!;
-    const id = url.match(/\/(\d+)$/)![1];
+/* ------------ petit utilitaire <a href> ------------ */
+const pickAnchor = (cell: string) => {
+  const $a = load(cell)("a[href]");
+  const id = $a.attr("href")?.match(/\/(\d+)(?:$|#)/)?.[1];
+  return id ? { id, txt: $a.text().trim() } : null;
+};
 
-    const countryTd = load(row[2]).text().trim(); // drapeau + nom
-    return {
-      type: "band",
-      id,
-      name: $a.text().trim(),
-      genre: row[1].trim(),
-      country: countryTd || null,
-    };
+/* ---------------- parseurs publics ---------------- */
+export async function searchBands(q: string): Promise<BandResult[]> {
+  console.time(`[bands] "${q}"`);
+  const rows = await getRows(
+    `${ROOT}/ajax-band-search/?field=name&query=${encodeURIComponent(q)}`,
+    "band"
+  );
+  const out = rows.flatMap((r) => {
+    const a = pickAnchor(r[0]);
+    if (!a) return [];
+    return [
+      {
+        type: "band",
+        id: a.id,
+        name: a.txt,
+        genre: r[1].trim(),
+        country: load(r[2]).text().trim() || null,
+      },
+    ];
   });
+  console.timeEnd(`[bands] "${q}"`);
+  console.log(`   ↳ ${out.length} bands trouvés`);
+  return out;
 }
 
-function parseArtistResults(json: any): Result[] {
-  return json.aaData.map((row: string[]): Result => {
-    // [0] pseudo + lien | [1] vrai nom | [2] pays
-    const $a = load(row[0])("a");
-    const url = $a.attr("href")!;
-    const id = url.match(/\/(\d+)$/)![1];
-
-    return {
-      type: "artist",
-      id,
-      name: $a.text().trim(),
-      realName: row[1].trim() || null,
-      country: load(row[2]).text().trim() || null,
-    };
+export async function searchArtists(q: string): Promise<ArtistResult[]> {
+  console.time(`[artists] "${q}"`);
+  const rows = await getRows(
+    `${ROOT}/ajax-artist-search/?field=alias&query=${encodeURIComponent(q)}`,
+    "artist"
+  );
+  const out = rows.flatMap((r) => {
+    const a = pickAnchor(r[0]);
+    if (!a) return [];
+    return [
+      {
+        type: "artist",
+        id: a.id,
+        name: a.txt,
+        realName: r[1].trim() || null,
+        country: load(r[2]).text().trim() || null,
+      },
+    ];
   });
+  console.timeEnd(`[artists] "${q}"`);
+  console.log(`   ↳ ${out.length} artists trouvés`);
+  return out;
 }
 
-function parseAlbumResults(json: any): Result[] {
-  return json.aaData.map((row: string[]): Result => {
-    // [0] titre + lien | [1] groupe + lien | [2] année
-    const $titleA = load(row[0])("a");
-    const albumUrl = $titleA.attr("href")!;
-    const id = albumUrl.match(/\/(\d+)$/)![1];
-
-    return {
-      type: "album",
-      id,
-      title: $titleA.text().trim(),
-      band: load(row[1])("a").text().trim(),
-      year: Number(row[2]) || 0,
-    };
+export async function searchAlbums(q: string): Promise<AlbumResult[]> {
+  console.time(`[albums] "${q}"`);
+  const rows = await getRows(
+    `${ROOT}/ajax-album-search/?field=title&query=${encodeURIComponent(q)}`,
+    "album"
+  );
+  const qL = q.toLowerCase();
+  const out = rows.flatMap((r) => {
+    const a = pickAnchor(r[0]);
+    if (!a || !a.txt.toLowerCase().includes(qL)) return [];
+    return [
+      {
+        type: "album",
+        id: a.id,
+        title: a.txt,
+        band: load(r[1])("a").text().trim(),
+        year: Number(r[2]) || 0,
+      },
+    ];
   });
+  console.timeEnd(`[albums] "${q}"`);
+  console.log(`   ↳ ${out.length} albums trouvés`);
+  return out;
 }
 
-function parseSongResults(json: any): Result[] {
-  return json.aaData.map((row: string[]): Result => {
-    // [0] titre + lien | [1] band + lien | [2] album + lien | [3] année
-    const $songA = load(row[0])("a");
-    const songUrl = $songA.attr("href")!;
-    const id = songUrl.match(/\/(\d+)$/)![1];
-
-    return {
-      type: "song",
-      id,
-      title: $songA.text().trim(),
-      band: load(row[1])("a").text().trim(),
-      album: load(row[2])("a").text().trim(),
-      year: Number(row[3]) || 0,
-    };
+export async function searchSongs(q: string): Promise<SongResult[]> {
+  console.time(`[songs] "${q}"`);
+  const rows = await getRows(
+    `${ROOT}/ajax-song-search/?field=title&query=${encodeURIComponent(q)}`,
+    "song"
+  );
+  const qL = q.toLowerCase();
+  const out = rows.flatMap((r) => {
+    const a = pickAnchor(r[0]);
+    if (!a || !a.txt.toLowerCase().includes(qL)) return [];
+    return [
+      {
+        type: "song",
+        id: a.id,
+        title: a.txt,
+        band: load(r[1])("a").text().trim(),
+        album: load(r[2])("a").text().trim(),
+        year: Number(r[3]) || 0,
+      },
+    ];
   });
+  console.timeEnd(`[songs] "${q}"`);
+  console.log(`   ↳ ${out.length} songs trouvés (≤ ${MAX_HITS})`);
+  return out;
 }

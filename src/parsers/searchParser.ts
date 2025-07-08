@@ -29,5 +29,10 @@ export function parseSearch(html: string): SearchItem[] {
     }
     out.push({ type, id, name, country: cells.eq(1).text().trim() });
   });
+
+  console.log(`Parsed ${out.length} search results`);
+  console.log(out.map((r) => `${r.type} ${r.id} ${r.name}`).join("\n"));
+  console.log("----------");
+  console.log(`Search results: ${out.length} items`);
   return out;
 }
