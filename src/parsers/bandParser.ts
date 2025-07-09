@@ -22,17 +22,29 @@ export function parseBand(html: string, id: string): Band {
 }
 
 /* -------- Discographie (résumé) -------- */
+// + nouvel import
+import { buildCoverUrl } from "../utils/buildCoverUrl.js";
+
+/* -------- Discographie (résumé) -------- */
 function parseDiscog($: CheerioAPI): ReleaseSummary[] {
-  return $("div#band_tab_discography table.discog tbody tr") // <— +sélecteur plus sûr
+  return $("div#band_tab_discography table.discog tbody tr")
     .map((_, tr) => {
       const cells = $(tr).find("td");
       const a = cells.eq(0).find("a");
+      const id = a.attr("href")!.match(/(\d+)(?:\D*$)/)![1];
+
+      const cover = buildCoverUrl(id);
+
+      // 👉 log ultra-court : id + cover
+      console.debug(`[discogItem] ${id} cover=${cover}`);
+
       return {
-        id: a.attr("href")!.match(/(\d+)(?:\D*$)/)![1],
+        id,
         url: a.attr("href")!,
         title: a.text().trim(),
         type: cells.eq(1).text().trim(),
         year: Number(cells.eq(2).text().trim()),
+        cover, // ← champ envoyé au client
       };
     })
     .get();

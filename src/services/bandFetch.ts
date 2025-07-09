@@ -14,24 +14,32 @@ export async function fetchBandHtml(id: string): Promise<string> {
   lastFetch = Date.now();
 
   const url = `${BASE_URL}/bands/_/${id}`;
+
+  console.time(`[bandFetch] upstream ${id}`);
   const res = await fetch(url, { headers: HEADERS });
+  console.timeEnd(`[bandFetch] upstream ${id}`);
+
   if (!res.ok) throw new Error(`Upstream ${res.status}`);
 
   const html = await res.text();
-  // Provide a TTL value, e.g., 60 * 1000 for 1 minute
   cache.set(id, html, 60 * 1000);
+  console.debug(`[bandFetch] cached ${id} (ttl 60s)`);
+
   return html;
 }
 
-export async function fetchDiscogHtml(id: string): Promise<string> {
-  const url = `https://www.metal-archives.com/band/discography/id/${id}/tab/all`;
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0",
-      "Accept-Language": "en-US,en;q=0.9",
-    },
-  });
-  if (!res.ok) throw new Error(`Discog upstream ${res.status}`);
-  return res.text();
-}
+// export async function fetchDiscogHtml(
+//   id: string,
+//   tab: string
+// ): Promise<string> {
+//   const url = `https://www.metal-archives.com/band/discography/id/${id}/tab/all`;
+//   const res = await fetch(url, {
+//     headers: {
+//       "User-Agent":
+//         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0",
+//       "Accept-Language": "en-US,en;q=0.9",
+//     },
+//   });
+//   if (!res.ok) throw new Error(`Discog upstream ${res.status}`);
+//   return res.text();
+// }
