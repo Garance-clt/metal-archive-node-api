@@ -6,6 +6,7 @@
 import { load } from "cheerio";
 import pLimit from "p-limit";
 import { fetchWithCache } from "./fetchWithCache.js";
+import { buildLogoUrl } from "../utils/buildLogoUrl.js";
 
 /* --------- réglages généraux --------- */
 const TTL = 6 * 60 * 60_000; // 6 h de cache
@@ -24,6 +25,7 @@ export type BandResult = {
   name: string;
   country: string | null;
   genre: string;
+  logo: string | null;
 };
 export type ArtistResult = {
   type: "artist";
@@ -119,6 +121,7 @@ export async function searchBands(q: string): Promise<BandResult[]> {
         name: a.txt,
         genre: r[1].trim(),
         country: load(r[2]).text().trim() || null,
+        logo: buildLogoUrl(a.id),
       },
     ];
   });
