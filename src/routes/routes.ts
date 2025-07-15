@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { logger } from "hono/logger"; // <- middleware prêt-à-l’emploi
 import { fetchBandHtml } from "../services/bandFetch.js";
-import { parseBand } from "../parsers/bandParser.js";
+import { parseBand, parseBiographyReadMore } from "../parsers/bandParser.js";
 import { fetchDiscog, TABS } from "../services/discogFetch.js";
 
 const router = new Hono();
@@ -44,6 +44,25 @@ router.get("/band/:id/discog", async (c) => {
   } catch (e: any) {
     console.error(`[discog] error on ${id}/${tab}: ${e.message}`);
     return c.json({ error: e.message }, 502);
+  }
+});
+
+router.get("/band/read-more/id/:id", async (c) => {
+  const id = c.req.param("id");
+  if (!id) return c.text("Missing ID", 400);
+
+  try {
+    const res = await fetch(
+      `https://www.metal-archives.com/band/read-more/id/${id}`
+    );
+    if (!res.ok) return c.text("Upstream not found", 502);
+
+    const html = await res.text();
+    const text = parseBiographyReadMore(html); // ou juste html si tu veux du brut
+    return c.text(text);
+  } catch (err) {
+    console.error(err);
+    return c.text("Internal error", 500);
   }
 });
 

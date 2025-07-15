@@ -7,10 +7,13 @@ export interface ReleaseSummary {
 }
 
 export interface Member {
+  id?: string; // optional, can be used for unique identification
   name: string;
   role: string;
   url: string;
   status: "current" | "past" | "live";
+  photo?: string; // optional, if available
+  otherBands?: { name: string; url: string }[]; // other bands the
 }
 
 export interface Band {
@@ -22,6 +25,11 @@ export interface Band {
   status: string;
   genre: string;
   logo: string | null;
+  yearsActive: string | null;
+  biography: string | null;
+  biographyReadMoreUrl: string | null;
+  currentLabel: string | null;
+  lyricalThemes: string | null;
   picture: string | null;
   releases: ReleaseSummary[];
   members: Member[];
