@@ -68,7 +68,7 @@ export function parseBand(html: string, id: string): Band {
     status: bandInfo["Status"] || "",
     genre: bandInfo["Genre"] || "",
     lyricalThemes: bandInfo["Themes"] || null,
-    currentLabel: bandInfo["Last label"] || null,
+    currentLabel: bandInfo["Current label"] || null,
     yearsActive: yearsActive || null,
     logo: extractImg($, "a#logo"),
     picture: extractImg($, "a#photo"),
