@@ -7,6 +7,7 @@ import { load } from "cheerio";
 import pLimit from "p-limit";
 import { fetchWithCache } from "./fetchWithCache.js";
 import { buildLogoUrl } from "../utils/buildLogoUrl.js";
+import { buildLabelLogoUrl } from "../utils/buildLabelLogoUrl.js";
 
 /* --------- réglages généraux --------- */
 const TTL = 6 * 60 * 60_000; // 6 h de cache
@@ -56,6 +57,7 @@ export type LabelResult = {
   name: string;
   country: string | null;
   specialties: string | null;
+  logo: string | null;
 };
 
 export type Result = BandResult | ArtistResult | AlbumResult | SongResult | LabelResult;
@@ -166,13 +168,13 @@ export async function searchLabels(q: string): Promise<LabelResult[]> {
   return rows.flatMap((r) => {
     const a = pickAnchor(r[0]);
     if (!a) return [];
-    // r[0] peut contenir "Name (a.k.a. Alias)" — on garde le nom propre de l'ancre
     return [{
       type: "label" as const,
       id: a.id,
       name: a.txt,
       country: load(r[1]).text().trim() || null,
       specialties: load(r[2]).text().trim() || null,
+      logo: buildLabelLogoUrl(a.id),
     }];
   });
 }
