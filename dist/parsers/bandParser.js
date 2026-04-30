@@ -40,6 +40,13 @@ export function parseBand(html, id) {
         .text()
         .replace(/\s+/g, " ")
         .trim();
+    // Label ID depuis le lien <a> dans la dd "Current label"
+    const labelAnchor = $("#band_stats dt")
+        .filter((_, dt) => $(dt).text().replace(/:$/, "").trim() === "Current label")
+        .next("dd")
+        .find("a[href]")
+        .first();
+    const currentLabelId = labelAnchor.attr("href")?.match(/\/labels\/[^/]+\/(\d+)/)?.[1] ?? null;
     // Biographie
     const $comment = $("#band_info .band_comment").clone();
     // Retire les liens mailto
@@ -62,6 +69,7 @@ export function parseBand(html, id) {
         genre: bandInfo["Genre"] || "",
         lyricalThemes: bandInfo["Themes"] || null,
         currentLabel: bandInfo["Current label"] || null,
+        currentLabelId: currentLabelId,
         yearsActive: yearsActive || null,
         logo: extractImg($, "a#logo"),
         picture: extractImg($, "a#photo"),
@@ -167,4 +175,41 @@ function parseMembers($) {
         });
     }
     return members;
+}
+export function parseBandSimilar(html) {
+    const $ = load(html);
+    const results = [];
+    $("#artist_list tbody tr[id^='recRow_']").each((_, tr) => {
+        const rowId = $(tr).attr("id") ?? "";
+        const id = rowId.replace("recRow_", "");
+        const cells = $(tr).find("td");
+        const name = cells.eq(0).find("a").text().trim();
+        const country = cells.eq(1).text().trim();
+        const genre = cells.eq(2).text().trim();
+        const score = parseInt(cells.eq(3).find("span").text().trim(), 10) || 0;
+        if (id && name)
+            results.push({ id, name, country, genre, score });
+    });
+    return results;
+}
+export function parseBandLinks(html) {
+    const $ = load(html);
+    const results = [];
+    let currentCategory = "Other";
+    $("table[id^='linksTable'] tr").each((_, tr) => {
+        const trId = $(tr).attr("id") ?? "";
+        if (trId.startsWith("header_")) {
+            currentCategory = $(tr).text().trim();
+            return;
+        }
+        if (trId.startsWith("linkRow")) {
+            const id = trId.replace("linkRow", "");
+            const a = $(tr).find("a").first();
+            const url = a.attr("href") ?? "";
+            const title = a.text().trim();
+            if (url && title)
+                results.push({ id, category: currentCategory, title, url });
+        }
+    });
+    return results;
 }

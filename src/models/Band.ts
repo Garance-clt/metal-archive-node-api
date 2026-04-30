@@ -30,6 +30,7 @@ export interface Band {
   biography: string | null;
   biographyReadMoreUrl: string | null;
   currentLabel: string | null;
+  currentLabelId: string | null;
   lyricalThemes: string | null;
   picture: string | null;
   releases: ReleaseSummary[];

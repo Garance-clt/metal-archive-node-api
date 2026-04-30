@@ -1,6 +1,11 @@
 import { Hono } from "hono";
-import { fetchBandHtml } from "../services/bandFetch.js";
-import { parseBand, parseBiographyReadMore } from "../parsers/bandParser.js";
+import { fetchBandHtml, fetchBandSimilar, fetchBandLinks } from "../services/bandFetch.js";
+import {
+  parseBand,
+  parseBiographyReadMore,
+  parseBandSimilar,
+  parseBandLinks,
+} from "../parsers/bandParser.js";
 import { fetchDiscog, TABS } from "../services/discogFetch.js";
 import { curlFetch } from "../utils/curlFetch.js";
 
@@ -9,6 +14,7 @@ const router = new Hono();
 /* -------- infos + discog main (résumé) -------- */
 router.get("/band/:id", async (c) => {
   const id = c.req.param("id");
+  if (!/^\d+$/.test(id)) return c.json({ error: "Invalid id" }, 400);
   try {
     const band = parseBand(await fetchBandHtml(id), id);
     return c.json(band);
@@ -20,6 +26,7 @@ router.get("/band/:id", async (c) => {
 /* -------- lazy : autres onglets discographie -------- */
 router.get("/band/:id/discog", async (c) => {
   const id = c.req.param("id");
+  if (!/^\d+$/.test(id)) return c.json({ error: "Invalid id" }, 400);
   const tab = (c.req.query("tab") || "main").toLowerCase() as any;
 
   if (!TABS.includes(tab)) {
@@ -36,7 +43,7 @@ router.get("/band/:id/discog", async (c) => {
 
 router.get("/band/read-more/id/:id", async (c) => {
   const id = c.req.param("id");
-  if (!id) return c.text("Missing ID", 400);
+  if (!id || !/^\d+$/.test(id)) return c.text("Invalid ID", 400);
 
   try {
     const html = await curlFetch(
@@ -45,6 +52,30 @@ router.get("/band/read-more/id/:id", async (c) => {
     return c.text(parseBiographyReadMore(html));
   } catch (e: any) {
     return c.text(e.message, 502);
+  }
+});
+
+/* -------- groupes similaires -------- */
+router.get("/band/:id/similar", async (c) => {
+  const id = c.req.param("id");
+  if (!/^\d+$/.test(id)) return c.json({ error: "Invalid id" }, 400);
+  try {
+    const html = await fetchBandSimilar(id);
+    return c.json({ similar: parseBandSimilar(html) });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 502);
+  }
+});
+
+/* -------- liens du groupe -------- */
+router.get("/band/:id/links", async (c) => {
+  const id = c.req.param("id");
+  if (!/^\d+$/.test(id)) return c.json({ error: "Invalid id" }, 400);
+  try {
+    const html = await fetchBandLinks(id);
+    return c.json({ links: parseBandLinks(html) });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 502);
   }
 });
 

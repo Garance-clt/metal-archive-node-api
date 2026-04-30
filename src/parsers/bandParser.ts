@@ -45,6 +45,15 @@ export function parseBand(html: string, id: string): Band {
     .replace(/\s+/g, " ")
     .trim();
 
+  // Label ID depuis le lien <a> dans la dd "Current label"
+  const labelAnchor = $("#band_stats dt")
+    .filter((_, dt) => $(dt).text().replace(/:$/, "").trim() === "Current label")
+    .next("dd")
+    .find("a[href]")
+    .first();
+  const currentLabelId =
+    labelAnchor.attr("href")?.match(/\/labels\/[^/]+\/(\d+)/)?.[1] ?? null;
+
   // Biographie
   const $comment = $("#band_info .band_comment").clone();
 
@@ -71,6 +80,7 @@ export function parseBand(html: string, id: string): Band {
     genre: bandInfo["Genre"] || "",
     lyricalThemes: bandInfo["Themes"] || null,
     currentLabel: bandInfo["Current label"] || null,
+    currentLabelId: currentLabelId,
     yearsActive: yearsActive || null,
     logo: extractImg($, "a#logo"),
     picture: extractImg($, "a#photo"),
@@ -187,4 +197,66 @@ function parseMembers($: CheerioAPI): Member[] {
   }
 
   return members;
+}
+
+/* -------- Groupes similaires -------- */
+
+export type SimilarBand = {
+  id: string;
+  name: string;
+  country: string;
+  genre: string;
+  score: number;
+};
+
+export function parseBandSimilar(html: string): SimilarBand[] {
+  const $ = load(html);
+  const results: SimilarBand[] = [];
+
+  $("#artist_list tbody tr[id^='recRow_']").each((_, tr) => {
+    const rowId = $(tr).attr("id") ?? "";
+    const id = rowId.replace("recRow_", "");
+    const cells = $(tr).find("td");
+    const name = cells.eq(0).find("a").text().trim();
+    const country = cells.eq(1).text().trim();
+    const genre = cells.eq(2).text().trim();
+    const score = parseInt(cells.eq(3).find("span").text().trim(), 10) || 0;
+    if (id && name) results.push({ id, name, country, genre, score });
+  });
+
+  return results;
+}
+
+/* -------- Liens du groupe -------- */
+
+export type BandLink = {
+  id: string;
+  category: string;
+  title: string;
+  url: string;
+};
+
+export function parseBandLinks(html: string): BandLink[] {
+  const $ = load(html);
+  const results: BandLink[] = [];
+  let currentCategory = "Other";
+
+  $("table[id^='linksTable'] tr").each((_, tr) => {
+    const trId = $(tr).attr("id") ?? "";
+
+    if (trId.startsWith("header_")) {
+      currentCategory = $(tr).text().trim();
+      return;
+    }
+
+    if (trId.startsWith("linkRow")) {
+      const id = trId.replace("linkRow", "");
+      const a = $(tr).find("a").first();
+      const url = a.attr("href") ?? "";
+      const title = a.text().trim();
+      if (url && title) results.push({ id, category: currentCategory, title, url });
+    }
+  });
+
+  return results;
 }

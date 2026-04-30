@@ -5,6 +5,7 @@ import {
   searchArtists,
   searchAlbums,
   searchSongs,
+  searchLabels,
 } from "../services/searchFetch.js";
 
 const router = new Hono();
@@ -44,6 +45,16 @@ router.get("/search/songs", async (c) => {
   if (!q) return c.json({ error: "Missing q" }, 400);
   try {
     return c.json({ songs: await searchSongs(q) });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 502);
+  }
+});
+
+router.get("/search/labels", async (c) => {
+  const q = (c.req.query("q") || "").trim();
+  if (!q) return c.json({ error: "Missing q" }, 400);
+  try {
+    return c.json({ labels: await searchLabels(q) });
   } catch (e: any) {
     return c.json({ error: e.message }, 502);
   }

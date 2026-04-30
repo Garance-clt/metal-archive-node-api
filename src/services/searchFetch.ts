@@ -50,7 +50,15 @@ export type SongResult = {
   year: number;
 };
 
-export type Result = BandResult | ArtistResult | AlbumResult | SongResult;
+export type LabelResult = {
+  type: "label";
+  id: string;
+  name: string;
+  country: string | null;
+  specialties: string | null;
+};
+
+export type Result = BandResult | ArtistResult | AlbumResult | SongResult | LabelResult;
 
 /* --------------------------------------------------------------
  *  getRows – télécharge *toutes* les pages JSON pour un “kind”.
@@ -147,5 +155,24 @@ export async function searchSongs(q: string): Promise<SongResult[]> {
     const a = pickAnchor(r[0]);
     if (!a || !a.txt.toLowerCase().includes(qL)) return [];
     return [{ type: "song" as const, id: a.id, title: a.txt, band: load(r[1])("a").text().trim(), album: load(r[2])("a").text().trim(), year: Number(r[3]) || 0 }];
+  });
+}
+
+export async function searchLabels(q: string): Promise<LabelResult[]> {
+  const rows = await getRows(
+    `${ROOT}/ajax-label-search/?field=name&query=${encodeURIComponent(q)}`,
+    "band" // même type de pagination
+  );
+  return rows.flatMap((r) => {
+    const a = pickAnchor(r[0]);
+    if (!a) return [];
+    // r[0] peut contenir "Name (a.k.a. Alias)" — on garde le nom propre de l'ancre
+    return [{
+      type: "label" as const,
+      id: a.id,
+      name: a.txt,
+      country: load(r[1]).text().trim() || null,
+      specialties: load(r[2]).text().trim() || null,
+    }];
   });
 }
