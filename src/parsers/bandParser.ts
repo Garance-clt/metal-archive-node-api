@@ -1,5 +1,7 @@
 import { load, type CheerioAPI } from "cheerio";
 import type { Band, ReleaseSummary, Member } from "../models/Band.js";
+import { buildCoverUrl } from "../utils/buildCoverUrl.js";
+import { buildArtistPhoto } from "../utils/buildArtistPhoto.js";
 
 function resolveUrl(u: string): string {
   if (u.startsWith("http")) return u;
@@ -80,8 +82,6 @@ export function parseBand(html: string, id: string): Band {
 }
 
 /* -------- Discographie (résumé) -------- */
-import { buildCoverUrl } from "../utils/buildCoverUrl.js";
-import { buildArtistPhoto } from "../utils/buildArtistPhoto.js";
 function parseDiscog($: CheerioAPI): ReleaseSummary[] {
   return $("div#band_tab_discography table.discog tbody tr")
     .map((_, tr) => {

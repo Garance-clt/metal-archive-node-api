@@ -1,0 +1,29 @@
+import { load } from "cheerio";
+export function parseSearch(html) {
+    const $ = load(html);
+    const rows = $("table.searchResults tr");
+    const out = [];
+    rows.each((_, tr) => {
+        const cells = $(tr).find("td");
+        if (!cells.length)
+            return; // skip header
+        const link = cells.eq(0).find("a");
+        const url = link.attr("href");
+        const name = link.text().trim();
+        let id = "0", type = "band";
+        if (url.includes("/bands/")) {
+            type = "band";
+            id = url.split("/").pop().split("#")[0];
+        }
+        if (url.includes("/artists/")) {
+            type = "artist";
+            id = url.split("/").pop().split("#")[0];
+        }
+        out.push({ type, id, name, country: cells.eq(1).text().trim() });
+    });
+    console.log(`Parsed ${out.length} search results`);
+    console.log(out.map((r) => `${r.type} ${r.id} ${r.name}`).join("\n"));
+    console.log("----------");
+    console.log(`Search results: ${out.length} items`);
+    return out;
+}

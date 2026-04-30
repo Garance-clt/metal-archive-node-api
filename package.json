@@ -9,7 +9,6 @@
   "dependencies": {
     "@hono/node-server": "^1.14.4",
     "cheerio": "^1.1.0",
-    "expo": "^53.0.18",
     "hono": "^4.7.11",
     "node-fetch": "^3.3.2",
     "p-limit": "^6.2.0"

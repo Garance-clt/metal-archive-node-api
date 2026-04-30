@@ -4,6 +4,7 @@ export interface ReleaseSummary {
   year: number;
   type: string;
   url: string;
+  cover?: string;
 }
 
 export interface Member {

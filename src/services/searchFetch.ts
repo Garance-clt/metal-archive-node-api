@@ -62,10 +62,8 @@ async function getRows(
   base: string,
   kind: "band" | "artist" | "album" | "song"
 ): Promise<any[]> {
-  console.time(`[${kind}] fetch`);
   const rows: any[] = [];
 
-  /* ---- page 0 ---- */
   const url0 = `${base}&iDisplayStart=0&iDisplayLength=${PAGE}&sEcho=1`;
   const first = JSON.parse(await fetchWithCache(url0, TTL));
   if (first.aaData?.length) rows.push(...first.aaData);
@@ -88,11 +86,9 @@ async function getRows(
 
   for (const t of tasks) {
     await t;
-    if (kind === "song" && rows.length >= MAX_HITS) break; // early-exit
+    if (kind === "song" && rows.length >= MAX_HITS) break;
   }
 
-  console.timeEnd(`[${kind}] fetch`);
-  console.log(`   ↳ ${rows.length} raw rows (${kind})`);
   return rows;
 }
 
@@ -105,102 +101,51 @@ const pickAnchor = (cell: string) => {
 
 /* ---------------- parseurs publics ---------------- */
 export async function searchBands(q: string): Promise<BandResult[]> {
-  console.time(`[bands] "${q}"`);
   const rows = await getRows(
     `${ROOT}/ajax-band-search/?field=name&query=${encodeURIComponent(q)}`,
     "band"
   );
-  const out = rows.flatMap((r) => {
+  return rows.flatMap((r) => {
     const a = pickAnchor(r[0]);
     if (!a) return [];
-
-    return [
-      {
-        type: "band" as const,
-        id: a.id,
-        name: a.txt,
-        genre: r[1].trim(),
-        country: load(r[2]).text().trim() || null,
-        logo: buildLogoUrl(a.id),
-      },
-    ];
+    return [{ type: "band" as const, id: a.id, name: a.txt, genre: r[1].trim(), country: load(r[2]).text().trim() || null, logo: buildLogoUrl(a.id) }];
   });
-  console.timeEnd(`[bands] "${q}"`);
-  console.log(`   ↳ ${out.length} bands trouvés`);
-  return out;
 }
 
 export async function searchArtists(q: string): Promise<ArtistResult[]> {
-  console.time(`[artists] "${q}"`);
   const rows = await getRows(
     `${ROOT}/ajax-artist-search/?field=alias&query=${encodeURIComponent(q)}`,
     "artist"
   );
-  const out = rows.flatMap((r) => {
+  return rows.flatMap((r) => {
     const a = pickAnchor(r[0]);
     if (!a) return [];
-    return [
-      {
-        type: "artist" as const,
-        id: a.id,
-        name: a.txt,
-        realName: r[1].trim() || null,
-        country: load(r[2]).text().trim() || null,
-      },
-    ];
+    return [{ type: "artist" as const, id: a.id, name: a.txt, realName: r[1].trim() || null, country: load(r[2]).text().trim() || null }];
   });
-  console.timeEnd(`[artists] "${q}"`);
-  console.log(`   ↳ ${out.length} artists trouvés`);
-  return out;
 }
 
 export async function searchAlbums(q: string): Promise<AlbumResult[]> {
-  console.time(`[albums] "${q}"`);
   const rows = await getRows(
     `${ROOT}/ajax-album-search/?field=title&query=${encodeURIComponent(q)}`,
     "album"
   );
   const qL = q.toLowerCase();
-  const out = rows.flatMap((r) => {
+  return rows.flatMap((r) => {
     const a = pickAnchor(r[0]);
     if (!a || !a.txt.toLowerCase().includes(qL)) return [];
-    return [
-      {
-        type: "album" as const,
-        id: a.id,
-        title: a.txt,
-        band: load(r[1])("a").text().trim(),
-        year: Number(r[2]) || 0,
-      },
-    ];
+    return [{ type: "album" as const, id: a.id, title: a.txt, band: load(r[1])("a").text().trim(), year: Number(r[2]) || 0 }];
   });
-  console.timeEnd(`[albums] "${q}"`);
-  console.log(`   ↳ ${out.length} albums trouvés`);
-  return out;
 }
 
 export async function searchSongs(q: string): Promise<SongResult[]> {
-  console.time(`[songs] "${q}"`);
   const rows = await getRows(
     `${ROOT}/ajax-song-search/?field=title&query=${encodeURIComponent(q)}`,
     "song"
   );
   const qL = q.toLowerCase();
-  const out = rows.flatMap((r) => {
+  return rows.flatMap((r) => {
     const a = pickAnchor(r[0]);
     if (!a || !a.txt.toLowerCase().includes(qL)) return [];
-    return [
-      {
-        type: "song" as const,
-        id: a.id,
-        title: a.txt,
-        band: load(r[1])("a").text().trim(),
-        album: load(r[2])("a").text().trim(),
-        year: Number(r[3]) || 0,
-      },
-    ];
+    return [{ type: "song" as const, id: a.id, title: a.txt, band: load(r[1])("a").text().trim(), album: load(r[2])("a").text().trim(), year: Number(r[3]) || 0 }];
   });
-  console.timeEnd(`[songs] "${q}"`);
-  console.log(`   ↳ ${out.length} songs trouvés (≤ ${MAX_HITS})`);
-  return out;
 }

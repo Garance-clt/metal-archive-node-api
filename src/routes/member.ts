@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { fetchArtistHtml } from "../services/artistFetch.js";
 import { parseArtist, parseArtistReadMore } from "../parsers/artistParser.js";
+import { curlFetch } from "../utils/curlFetch.js";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 const router = new Hono();
@@ -25,17 +26,9 @@ router.get("/artist/read-more/id/:id", async (c) => {
     return c.text("Invalid id", 400 as ContentfulStatusCode);
 
   try {
-    const res = await fetch(
+    const html = await curlFetch(
       `https://www.metal-archives.com/artist/read-more/id/${id}`
     );
-    if (!res.ok) {
-      // ✅ use overload (text, status?)
-      return c.text(
-        `Upstream ${res.status}`,
-        res.status as ContentfulStatusCode
-      );
-    }
-    const html = await res.text(); // ✅ you were missing this
     return c.text(parseArtistReadMore(html));
   } catch (e: any) {
     return c.json({ error: e.message }, 502);

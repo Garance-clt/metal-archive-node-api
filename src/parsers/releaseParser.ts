@@ -1,6 +1,7 @@
 // parsers/releaseParser.ts
 import { load } from "cheerio";
 import type { CheerioAPI, Cheerio } from "cheerio";
+import pLimit from "p-limit";
 
 export interface ReleaseDetails {
   id: string;
@@ -234,37 +235,12 @@ export async function attachLyricsToTracks(
   opts: LyricsOptions = {}
 ) {
   const opt = { ...DEFAULT_LYRICS_OPTS, ...opts };
+  const limit = pLimit(opt.concurrency);
 
-  // petit p-limit maison (évite d’ajouter une dépendance)
-  const queue: Promise<void>[] = [];
-  let active = 0;
-  const run = (fn: () => Promise<void>) =>
-    new Promise<void>((resolve, reject) => {
-      const exec = async () => {
-        active++;
-        try {
-          await fn();
-          resolve();
-        } catch (e) {
-          reject(e);
-        } finally {
-          active--;
-          if (queue.length) {
-            const next = queue.shift()!;
-            next.then(() => {}).catch(() => {});
-          }
-        }
-      };
-      if (active < opt.concurrency) exec();
-      else queue.push(exec());
-    });
-
-  const tasks: Promise<void>[] = [];
-  for (const t of tracks) {
-    if (!t.lyricsId) continue;
-
-    tasks.push(
-      run(async () => {
+  const tasks = tracks
+    .filter((t) => !!t.lyricsId)
+    .map((t) =>
+      limit(async () => {
         const url = buildLyricsUrl(t.lyricsId!, opt.baseUrl);
         let attempt = 0;
 
@@ -278,12 +254,11 @@ export async function attachLyricsToTracks(
             clearTimeout(to);
 
             if (!res.ok) {
-              // 429/5xx => retry
               if (
                 (res.status === 429 || res.status >= 500) &&
                 attempt <= opt.retry + 1
               ) {
-                await new Promise((r) => setTimeout(r, 250 * attempt)); // backoff léger
+                await new Promise((r) => setTimeout(r, 250 * attempt));
                 continue;
               }
               t.lyricsStatus = "error";
@@ -309,7 +284,6 @@ export async function attachLyricsToTracks(
             return;
           } catch (err: any) {
             clearTimeout(to);
-            // abort/timeout ou réseau -> retry
             if (attempt <= opt.retry + 1) {
               await new Promise((r) => setTimeout(r, 250 * attempt));
               continue;
@@ -321,7 +295,6 @@ export async function attachLyricsToTracks(
         }
       })
     );
-  }
 
   await Promise.allSettled(tasks);
 }
@@ -335,7 +308,7 @@ function parseLineupTables($: CheerioAPI) {
     "#album_tabs_lineup .lineupTable",
   ];
 
-  let tables: Cheerio<unknown> | undefined;
+  let tables: ReturnType<CheerioAPI> | undefined;
   for (const sel of candidates) {
     const found = $(sel);
     if (found.length) {
