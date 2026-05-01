@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { fetchAlbumHtml } from "../services/albumFetch.js";
+import { fetchReleaseCover } from "../services/releaseCover.js";
 import { curlFetchResponse } from "../utils/curlFetch.js";
 import { BASE_URL } from "../utils/constants.js";
 import {
@@ -46,6 +47,16 @@ router.get("/albums/:id", async (c) => {
   } catch (e: any) {
     return c.json({ error: e.message }, 502);
   }
+});
+
+/** Redirect to the verified cover image URL (tries jpg/jpeg/png/gif, then HTML scrape).
+ *  Cached 24h. React Native Image follows the redirect automatically. */
+router.get("/albums/:id/cover", async (c) => {
+  const id = c.req.param("id");
+  if (!/^\d+$/.test(id)) return c.text("Invalid id", 400);
+  const url = await fetchReleaseCover(id);
+  if (!url) return c.text("No cover found", 404);
+  return c.redirect(url, 302);
 });
 
 export default router;

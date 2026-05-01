@@ -20,11 +20,9 @@ function extractImg($, anchorSelector) {
 }
 export function parseBiographyReadMore(html) {
     const $ = load(html);
-    $('a[href^="mailto:"]').remove(); // Retire les emails
-    return $.root()
-        .text()
-        .replace(/<br\s*\/?>/gi, "\n")
-        .trim();
+    $('a[href^="mailto:"]').remove();
+    $("br").replaceWith("\n");
+    return $.root().text().trim();
 }
 export function parseBand(html, id) {
     const $ = load(html);
@@ -85,23 +83,28 @@ function parseDiscog($) {
         .map((_, tr) => {
         const cells = $(tr).find("td");
         const a = cells.eq(0).find("a");
-        const id = a.attr("href").match(/(\d+)(?:\D*$)/)[1];
+        const href = a.attr("href");
+        if (!href)
+            return null;
+        const idMatch = href.match(/(\d+)(?:\D*$)/);
+        if (!idMatch)
+            return null;
+        const id = idMatch[1];
         return {
             id,
-            url: a.attr("href"),
+            url: href,
             title: a.text().trim(),
             type: cells.eq(1).text().trim(),
             year: Number(cells.eq(2).text().trim()),
             cover: buildCoverUrl(id),
         };
     })
-        .get();
+        .get()
+        .filter(Boolean);
 }
 function extractArtistIdFromUrl(url) {
     const match = url.match(/\/artists\/[^/]+\/(\d+)/);
-    if (!match)
-        throw new Error(`Invalid artist URL: ${url}`);
-    return match[1];
+    return match ? match[1] : null;
 }
 function parseMembers($) {
     const members = [];
@@ -110,14 +113,14 @@ function parseMembers($) {
             const row = $(tr);
             const link = row.find("a.bold");
             const href = link.attr("href") ?? "";
-            const id = extractArtistIdFromUrl(href);
+            const id = extractArtistIdFromUrl(href) ?? undefined;
             const member = {
                 id,
                 name: link.text().trim(),
                 url: href,
                 status,
                 role: row.find("td").eq(1).text().replace(/\s+/g, " ").trim(),
-                photo: buildArtistPhoto(id),
+                photo: id ? buildArtistPhoto(id) : undefined,
             };
             // also in:
             const bandsRow = row.next("tr.lineupBandsRow");
@@ -141,7 +144,7 @@ function parseMembers($) {
             const row = $(tr);
             const link = row.find("a.bold");
             const href = link.attr("href") ?? "";
-            const id = extractArtistIdFromUrl(href);
+            const id = extractArtistIdFromUrl(href) ?? undefined;
             // détecter le statut depuis le header précédent
             const statusText = $(tr)
                 .prevAll("tr.lineupHeaders")
@@ -159,7 +162,7 @@ function parseMembers($) {
                 url: href,
                 status,
                 role: row.find("td").eq(1).text().replace(/\s+/g, " ").trim(),
-                photo: buildArtistPhoto(id),
+                photo: id ? buildArtistPhoto(id) : undefined,
             };
             const bandsRow = row.next("tr.lineupBandsRow");
             if (bandsRow.length) {

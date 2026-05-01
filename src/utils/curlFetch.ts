@@ -1,8 +1,8 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { APP_USER_AGENT } from "./constants.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const CURL_HEADERS = [
   `User-Agent: ${APP_USER_AGENT}`,
@@ -12,7 +12,20 @@ const CURL_HEADERS = [
   "Upgrade-Insecure-Requests: 1",
 ];
 
-const HEADER_ARGS = CURL_HEADERS.map((h) => `-H "${h.replace(/"/g, '\\"')}" `).join("");
+// Build header args as an array to avoid shell injection
+const HEADER_ARGS_ARRAY = CURL_HEADERS.flatMap((h) => ["-H", h]);
+
+function validateUrl(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error("Invalid URL format");
+  }
+  if (!parsed.hostname.endsWith("metal-archives.com")) {
+    throw new Error("URL not allowed: only metal-archives.com is permitted");
+  }
+}
 
 /**
  * Effectue une requête GET via curl et retourne le body en string.
@@ -41,12 +54,31 @@ export async function curlFetchResponse(
 }
 
 async function curlRequest(url: string): Promise<{ body: string; status: number }> {
-  const cmd = `curl -s -L --max-time 30 --write-out "\n__STATUS__%{http_code}" ${HEADER_ARGS}"${url}"`;
-  const { stdout } = await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024 });
+  validateUrl(url);
+  const { stdout } = await execFileAsync(
+    "curl",
+    ["-s", "-L", "--max-time", "30", "--write-out", "\n__STATUS__%{http_code}", ...HEADER_ARGS_ARRAY, url],
+    { maxBuffer: 10 * 1024 * 1024 }
+  );
 
   const sep = stdout.lastIndexOf("\n__STATUS__");
   const body = sep !== -1 ? stdout.slice(0, sep) : stdout;
   const status = sep !== -1 ? parseInt(stdout.slice(sep + 11), 10) : 200;
 
   return { body, status };
+}
+
+/**
+ * Follows redirects and returns the final effective URL after all redirects.
+ */
+export async function curlGetRedirectUrl(url: string): Promise<string> {
+  validateUrl(url);
+  const { stdout } = await execFileAsync("curl", [
+    "-s", "-L", "--max-time", "10",
+    "-w", "%{url_effective}",
+    "-o", "/dev/null",
+    ...HEADER_ARGS_ARRAY,
+    url,
+  ]);
+  return stdout.trim();
 }

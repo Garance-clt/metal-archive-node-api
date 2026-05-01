@@ -1,8 +1,8 @@
 // services/labelFetch.ts
 import { fetchWithCache } from "./fetchWithCache.js";
 const BASE = "https://www.metal-archives.com";
-const TTL_PAGE = 6 * 60 * 60_000; // 6h
-const TTL_LIST = 6 * 60 * 60_000; // 6h
+const TTL_PAGE = 48 * 60 * 60_000; // 48h — les infos d'un label changent rarement
+const TTL_LIST = 24 * 60 * 60_000; // 24h
 const PAGE_SIZE = 500;
 export function fetchLabelHtml(id) {
     return fetchWithCache(`${BASE}/labels/_/${id}`, TTL_PAGE);
@@ -13,17 +13,15 @@ async function fetchAllPages(urlBase) {
     const rows = [...(first.aaData ?? [])];
     const total = first.iTotalRecords ?? rows.length;
     const pages = Math.ceil(total / PAGE_SIZE);
-    const pending = [];
+    // Pages suivantes en séquence pour ne pas saturer le throttle
     for (let p = 1; p < pages; p++) {
         const offset = p * PAGE_SIZE;
         const url = `${urlBase}?sEcho=1&iDisplayStart=${offset}&iDisplayLength=${PAGE_SIZE}`;
-        pending.push(fetchWithCache(url, TTL_LIST).then((raw) => {
-            const json = JSON.parse(raw);
-            if (json.aaData?.length)
-                rows.push(...json.aaData);
-        }));
+        const raw = await fetchWithCache(url, TTL_LIST);
+        const json = JSON.parse(raw);
+        if (json.aaData?.length)
+            rows.push(...json.aaData);
     }
-    await Promise.all(pending);
     return rows;
 }
 export function fetchLabelRoster(id) {

@@ -1,14 +1,28 @@
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
-const execAsync = promisify(exec);
+import { APP_USER_AGENT } from "./constants.js";
+const execFileAsync = promisify(execFile);
 const CURL_HEADERS = [
-    "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    `User-Agent: ${APP_USER_AGENT}`,
     "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language: en-US,en;q=0.9",
     "Referer: https://www.metal-archives.com/",
     "Upgrade-Insecure-Requests: 1",
 ];
-const HEADER_ARGS = CURL_HEADERS.map((h) => `-H "${h.replace(/"/g, '\\"')}" `).join("");
+// Build header args as an array to avoid shell injection
+const HEADER_ARGS_ARRAY = CURL_HEADERS.flatMap((h) => ["-H", h]);
+function validateUrl(url) {
+    let parsed;
+    try {
+        parsed = new URL(url);
+    }
+    catch {
+        throw new Error("Invalid URL format");
+    }
+    if (!parsed.hostname.endsWith("metal-archives.com")) {
+        throw new Error("URL not allowed: only metal-archives.com is permitted");
+    }
+}
 /**
  * Effectue une requête GET via curl et retourne le body en string.
  * Lève une erreur si le status HTTP >= 400.
@@ -32,10 +46,24 @@ export async function curlFetchResponse(url, _init) {
     };
 }
 async function curlRequest(url) {
-    const cmd = `curl -s -L --max-time 30 --write-out "\n__STATUS__%{http_code}" ${HEADER_ARGS}"${url}"`;
-    const { stdout } = await execAsync(cmd, { maxBuffer: 10 * 1024 * 1024 });
+    validateUrl(url);
+    const { stdout } = await execFileAsync("curl", ["-s", "-L", "--max-time", "30", "--write-out", "\n__STATUS__%{http_code}", ...HEADER_ARGS_ARRAY, url], { maxBuffer: 10 * 1024 * 1024 });
     const sep = stdout.lastIndexOf("\n__STATUS__");
     const body = sep !== -1 ? stdout.slice(0, sep) : stdout;
     const status = sep !== -1 ? parseInt(stdout.slice(sep + 11), 10) : 200;
     return { body, status };
+}
+/**
+ * Follows redirects and returns the final effective URL after all redirects.
+ */
+export async function curlGetRedirectUrl(url) {
+    validateUrl(url);
+    const { stdout } = await execFileAsync("curl", [
+        "-s", "-L", "--max-time", "10",
+        "-w", "%{url_effective}",
+        "-o", "/dev/null",
+        ...HEADER_ARGS_ARRAY,
+        url,
+    ]);
+    return stdout.trim();
 }

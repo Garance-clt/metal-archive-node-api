@@ -4,9 +4,9 @@ import { buildCoverUrl } from "../utils/buildCoverUrl.js";
 import { load } from "cheerio";
 import { BASE_URL } from "../utils/constants.js";
 import { curlFetch } from "../utils/curlFetch.js";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const TTL = 24 * 60 * 60_000; // 24 h
 const EXT = ["jpg", "png", "jpeg"];
 /** Retourne l'URL de la pochette ou null si introuvable */
@@ -18,7 +18,9 @@ export async function fetchReleaseCover(id) {
     for (const ext of EXT) {
         const url = buildCoverUrl(id, ext);
         try {
-            const { stdout } = await execAsync(`curl -s -o /dev/null -w "%{http_code}" --head "${url}"`);
+            const { stdout } = await execFileAsync("curl", [
+                "-s", "-o", "/dev/null", "-w", "%{http_code}", "--head", url,
+            ]);
             if (stdout.trim() === "200") {
                 cache.set("cover:" + id, url, TTL);
                 return url;
