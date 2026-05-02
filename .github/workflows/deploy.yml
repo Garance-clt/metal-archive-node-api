@@ -35,6 +35,7 @@ jobs:
       - name: Deploy
         run: |
           ssh -i ~/.ssh/id_deploy ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+            echo '${{ secrets.GHCR_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin &&
             cd /var/www/metallum-api &&
             docker compose pull &&
             docker compose up -d &&
