@@ -8,15 +8,13 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 
 const execFileAsync = promisify(execFile);
-const TTL = 24 * 60 * 60_000; // 24 h
+import { TTL_FOREVER } from "../utils/constants.js";
 const EXT = ["jpg", "jpeg", "png", "gif"] as const;
 
-/** Retourne l'URL de la pochette ou null si introuvable */
 export async function fetchReleaseCover(id: string): Promise<string | null> {
   const hit = cache.get("cover:" + id);
   if (hit) return hit;
 
-  /* ---------- 1) HEAD direct sur le CDN ---------- */
   for (const ext of EXT) {
     const url = buildCoverUrl(id, ext);
     try {
@@ -24,15 +22,13 @@ export async function fetchReleaseCover(id: string): Promise<string | null> {
         "-s", "-o", "/dev/null", "-w", "%{http_code}", "--head", url,
       ]);
       if (stdout.trim() === "200") {
-        cache.set("cover:" + id, url, TTL);
+        cache.set("cover:" + id, url, TTL_FOREVER);
         return url;
       }
     } catch {
-      // réseau : on continue
     }
   }
 
-  /* ---------- 2) Fallback scrap HTML (rare) ---------- */
   try {
     const html = await curlFetch(`${BASE_URL}/albums/_/_/${id}`);
     const $ = load(html);
@@ -40,7 +36,7 @@ export async function fetchReleaseCover(id: string): Promise<string | null> {
       $("#cover img").attr("src") ??
       $('meta[property="og:image"]').attr("content") ??
       null;
-    if (cover) cache.set("cover:" + id, cover, TTL);
+    if (cover) cache.set("cover:" + id, cover, TTL_FOREVER);
     return cover;
   } catch {
     return null;

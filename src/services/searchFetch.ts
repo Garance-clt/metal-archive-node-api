@@ -1,16 +1,11 @@
-/* ------------------------------------------------------------------
- *  Metal-Archives « lazy search » – bands & artists immédiats,
- *  albums / songs au clic.  Logs détaillés + pagination paral­lélisée
- * ----------------------------------------------------------------- */
-
 import { load } from "cheerio";
 import pLimit from "p-limit";
 import { fetchWithCache } from "./fetchWithCache.js";
+import cache from "./cache.js";
 import { buildLogoUrl } from "../utils/buildLogoUrl.js";
 import { buildLabelLogoUrl } from "../utils/buildLabelLogoUrl.js";
 
-/* --------- réglages généraux --------- */
-const TTL = 6 * 60 * 60_000; // 6 h de cache
+import { TTL_FOREVER } from "../utils/constants.js";
 const PAGE = 500; // max accepté par l’API
 const MAX_HITS = 600; // stop DL quand assez (songs)
 const CONCURRENCY = 6; // appels parallèles
@@ -19,7 +14,6 @@ const ROOT = "https://www.metal-archives.com/search";
 
 const limit = pLimit(CONCURRENCY);
 
-/* ------------ types de résultats ------------ */
 export type BandResult = {
   type: "band";
   id: string;
@@ -62,12 +56,6 @@ export type LabelResult = {
 
 export type Result = BandResult | ArtistResult | AlbumResult | SongResult | LabelResult;
 
-/* --------------------------------------------------------------
- *  getRows – télécharge *toutes* les pages JSON pour un “kind”.
- *  • 1ʳᵉ page → total → génération du reste.
- *  • appels parallèles limités (p-limit).
- *  • early-exit pour ‘song’ quand MAX_HITS atteint.
- * ------------------------------------------------------------- */
 async function getRows(
   base: string,
   kind: "band" | "artist" | "album" | "song"
@@ -75,7 +63,13 @@ async function getRows(
   const rows: any[] = [];
 
   const url0 = `${base}&iDisplayStart=0&iDisplayLength=${PAGE}&sEcho=1`;
-  const first = JSON.parse(await fetchWithCache(url0, TTL));
+  let first: any;
+  try { first = JSON.parse(await fetchWithCache(url0, TTL_FOREVER)); }
+  catch {
+    // MA a retourné du HTML (rate-limit, Cloudflare) — invalider le cache pour le prochain appel
+    cache.delete(url0);
+    return [];
+  }
   if (first.aaData?.length) rows.push(...first.aaData);
 
   const total = first.iTotalRecords ?? rows.length;
@@ -88,28 +82,25 @@ async function getRows(
 
     tasks.push(
       limit(async () => {
-        const json = JSON.parse(await fetchWithCache(url, TTL));
+        let json: any;
+        try { json = JSON.parse(await fetchWithCache(url, TTL_FOREVER)); }
+        catch { return; } // ignore invalid JSON pages
         if (json.aaData?.length) rows.push(...json.aaData);
       })
     );
   }
 
-  for (const t of tasks) {
-    await t;
-    if (kind === "song" && rows.length >= MAX_HITS) break;
-  }
+  await Promise.all(tasks);
 
   return rows;
 }
 
-/* ------------ petit utilitaire <a href> ------------ */
 const pickAnchor = (cell: string) => {
   const $a = load(cell)("a[href]");
   const id = $a.attr("href")?.match(/\/(\d+)(?:$|#)/)?.[1];
   return id ? { id, txt: $a.text().trim() } : null;
 };
 
-/* ---------------- parseurs publics ---------------- */
 export async function searchBands(q: string): Promise<BandResult[]> {
   const rows = await getRows(
     `${ROOT}/ajax-band-search/?field=name&query=${encodeURIComponent(q)}`,

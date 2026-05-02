@@ -5,7 +5,6 @@ import { curlGetRedirectUrl } from "../utils/curlFetch.js";
 
 const router = new Hono();
 
-/* -------- upcoming releases -------- */
 router.get("/home/upcoming", async (c) => {
   try {
     const releases = await fetchUpcomingReleases();
@@ -15,7 +14,6 @@ router.get("/home/upcoming", async (c) => {
   }
 });
 
-/* -------- random band (no cache) -------- */
 router.get("/home/random-band", async (c) => {
   try {
     const finalUrl = await curlGetRedirectUrl(
@@ -32,7 +30,6 @@ router.get("/home/random-band", async (c) => {
   }
 });
 
-/* -------- bands by country -------- */
 router.get("/home/bands-by-country", async (c) => {
   const country = c.req.query("country") ?? "";
   if (!country || !/^[A-Z]{2}$/.test(country)) {
@@ -46,7 +43,6 @@ router.get("/home/bands-by-country", async (c) => {
   }
 });
 
-/* -------- latest additions -------- */
 router.get("/home/latest", async (c) => {
   try {
     const data = await fetchLatestAdditions();

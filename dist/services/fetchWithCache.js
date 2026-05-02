@@ -2,16 +2,11 @@
 import cache from "./cache.js";
 import { curlFetchResponse } from "../utils/curlFetch.js";
 import { sleep } from "../utils/sleep.js";
-import { THROTTLE_MS } from "../utils/constants.js";
+import { THROTTLE_MS, TTL_FOREVER } from "../utils/constants.js";
 let lastFetch = 0;
 const RETRY_DELAYS = [1500, 4000, 8000]; // délais entre retries en ms
-/**
- * Récupère une page HTML avec cache mémoire + throttle + retry automatique sur 5xx.
- * Utilise curl en interne pour contourner le TLS fingerprinting Cloudflare.
- * @param url  URL absolue Metal-Archives
- * @param ttl  Durée de vie en ms (défaut : 24 h)
- */
-export async function fetchWithCache(url, ttl = 24 * 60 * 60 * 1000) {
+// uses curl to bypass Cloudflare TLS fingerprinting; cache + throttle + retry on 5xx
+export async function fetchWithCache(url, ttl = TTL_FOREVER) {
     const cached = cache.get(url);
     if (cached)
         return cached;

@@ -3,7 +3,6 @@ import { load } from "cheerio";
 import { buildImageUrl } from "../utils/buildImageUrl.js";
 import type { Label, LabelBand, LabelRelease, SubLabel } from "../models/Label.js";
 
-/* ---------- helpers ---------- */
 
 function pickAnchor(html: string): { id: string; name: string } | null {
   const $ = load(html);
@@ -21,7 +20,6 @@ function tryLabelLogo(id: string): string | null {
   }
 }
 
-/* ---------- label page ---------- */
 
 export function parseLabel(html: string, id: string): Label {
   const $ = load(html);
@@ -99,7 +97,6 @@ export function parseLabel(html: string, id: string): Label {
   };
 }
 
-/* ---------- roster ---------- */
 
 export function parseLabelRoster(rows: any[]): LabelBand[] {
   return rows.flatMap((r) => {
@@ -114,7 +111,6 @@ export function parseLabelRoster(rows: any[]): LabelBand[] {
   });
 }
 
-/* ---------- releases ---------- */
 
 export function parseLabelReleases(rows: any[]): LabelRelease[] {
   return rows.flatMap((r) => {

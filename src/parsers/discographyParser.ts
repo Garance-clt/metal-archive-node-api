@@ -17,8 +17,8 @@ export function parseDiscogFragment(html: string): ReleaseSummary[] {
         id,
         title: a.text().trim(),
         url,
-        type: cells.eq(1).text().trim(), // ← deuxième colonne
-        year: Number(cells.eq(2).text().trim()), // ← troisième colonne
+        type: cells.eq(1).text().trim(),
+        year: Number(cells.eq(2).text().trim()),
       };
     })
     .get();

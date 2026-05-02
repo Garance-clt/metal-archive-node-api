@@ -68,6 +68,6 @@ app.route("/", searchRouter);
 app.route("/", labelRouter);
 app.route("/", homeRouter);
 
-serve({ fetch: app.fetch, port: 3000 }, () =>
-  console.log("🎸  http://localhost:3000/band/7")
+serve({ fetch: app.fetch, port: Number(process.env.PORT) || 3000 }, (info) =>
+  console.log(`api running on port ${info.port}`)
 );

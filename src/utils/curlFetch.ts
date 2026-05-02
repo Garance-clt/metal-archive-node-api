@@ -1,8 +1,12 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
+import pLimit from "p-limit";
 import { APP_USER_AGENT } from "./constants.js";
 
 const execFileAsync = promisify(execFile);
+
+// Cap concurrent curl processes to avoid resource exhaustion
+const curlLimit = pLimit(12);
 
 const CURL_HEADERS = [
   `User-Agent: ${APP_USER_AGENT}`,
@@ -27,20 +31,12 @@ function validateUrl(url: string): void {
   }
 }
 
-/**
- * Effectue une requête GET via curl et retourne le body en string.
- * Lève une erreur si le status HTTP >= 400.
- */
 export async function curlFetch(url: string): Promise<string> {
   const { body, status } = await curlRequest(url);
   if (status >= 400) throw new Error(`Upstream status ${status}`);
   return body;
 }
 
-/**
- * Adaptateur compatible avec l'interface fetch() standard.
- * Utilisé pour passer curlFetch là où un fetcher(url, init?) est attendu.
- */
 export async function curlFetchResponse(
   url: string,
   _init?: { signal?: AbortSignal }
@@ -55,22 +51,21 @@ export async function curlFetchResponse(
 
 async function curlRequest(url: string): Promise<{ body: string; status: number }> {
   validateUrl(url);
-  const { stdout } = await execFileAsync(
-    "curl",
-    ["-s", "-L", "--max-time", "30", "--write-out", "\n__STATUS__%{http_code}", ...HEADER_ARGS_ARRAY, url],
-    { maxBuffer: 10 * 1024 * 1024 }
-  );
+  return curlLimit(async () => {
+    const { stdout } = await execFileAsync(
+      "curl",
+      ["-s", "-L", "--max-time", "30", "--write-out", "\n__STATUS__%{http_code}", ...HEADER_ARGS_ARRAY, url],
+      { maxBuffer: 10 * 1024 * 1024 }
+    );
 
-  const sep = stdout.lastIndexOf("\n__STATUS__");
-  const body = sep !== -1 ? stdout.slice(0, sep) : stdout;
-  const status = sep !== -1 ? parseInt(stdout.slice(sep + 11), 10) : 200;
+    const sep = stdout.lastIndexOf("\n__STATUS__");
+    const body = sep !== -1 ? stdout.slice(0, sep) : stdout;
+    const status = sep !== -1 ? parseInt(stdout.slice(sep + 11), 10) : 200;
 
-  return { body, status };
+    return { body, status };
+  });
 }
 
-/**
- * Follows redirects and returns the final effective URL after all redirects.
- */
 export async function curlGetRedirectUrl(url: string): Promise<string> {
   validateUrl(url);
   const { stdout } = await execFileAsync("curl", [

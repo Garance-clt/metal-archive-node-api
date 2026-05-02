@@ -11,7 +11,6 @@ import { curlFetch } from "../utils/curlFetch.js";
 
 const router = new Hono();
 
-/* -------- infos + discog main (résumé) -------- */
 router.get("/band/:id", async (c) => {
   const id = c.req.param("id");
   if (!/^\d+$/.test(id)) return c.json({ error: "Invalid id" }, 400);
@@ -23,7 +22,6 @@ router.get("/band/:id", async (c) => {
   }
 });
 
-/* -------- lazy : autres onglets discographie -------- */
 router.get("/band/:id/discog", async (c) => {
   const id = c.req.param("id");
   if (!/^\d+$/.test(id)) return c.json({ error: "Invalid id" }, 400);
@@ -55,7 +53,6 @@ router.get("/band/read-more/id/:id", async (c) => {
   }
 });
 
-/* -------- groupes similaires -------- */
 router.get("/band/:id/similar", async (c) => {
   const id = c.req.param("id");
   if (!/^\d+$/.test(id)) return c.json({ error: "Invalid id" }, 400);
@@ -67,7 +64,6 @@ router.get("/band/:id/similar", async (c) => {
   }
 });
 
-/* -------- liens du groupe -------- */
 router.get("/band/:id/links", async (c) => {
   const id = c.req.param("id");
   if (!/^\d+$/.test(id)) return c.json({ error: "Invalid id" }, 400);

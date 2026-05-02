@@ -14,7 +14,6 @@ import {
 
 const router = new Hono();
 
-/* -------- info label -------- */
 router.get("/label/:id", async (c) => {
   const id = c.req.param("id");
   if (!/^\d+$/.test(id)) return c.json({ error: "Invalid id" }, 400);
@@ -26,7 +25,6 @@ router.get("/label/:id", async (c) => {
   }
 });
 
-/* -------- roster actuel + passé -------- */
 router.get("/label/:id/roster", async (c) => {
   const id = c.req.param("id");
   if (!/^\d+$/.test(id)) return c.json({ error: "Invalid id" }, 400);
@@ -45,7 +43,6 @@ router.get("/label/:id/roster", async (c) => {
   }
 });
 
-/* -------- releases -------- */
 router.get("/label/:id/releases", async (c) => {
   const id = c.req.param("id");
   if (!/^\d+$/.test(id)) return c.json({ error: "Invalid id" }, 400);

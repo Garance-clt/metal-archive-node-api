@@ -1,15 +1,10 @@
-// services/homeFetch.ts
 import { fetchWithCache } from "./fetchWithCache.js";
 import { load } from "cheerio";
 import { buildLogoUrl } from "../utils/buildLogoUrl.js";
 import { buildLabelLogoUrl } from "../utils/buildLabelLogoUrl.js";
+import { TTL_FOREVER, TTL_LIVE } from "../utils/constants.js";
 
 const BASE = "https://www.metal-archives.com";
-const TTL_6H = 6 * 60 * 60_000;
-const TTL_24H = 24 * 60 * 60_000;
-const TTL_30M = 30 * 60_000;
-
-/* ---------- types ---------- */
 
 export interface UpcomingRelease {
   bandId: string;
@@ -44,8 +39,6 @@ export interface LatestLabel {
   logo: string;
 }
 
-/* ---------- helpers ---------- */
-
 function parseAnchor(html: string): { id: string; name: string } | null {
   const $ = load(html);
   const a = $("a[href]").first();
@@ -54,12 +47,11 @@ function parseAnchor(html: string): { id: string; name: string } | null {
   return id ? { id, name: a.text().trim() } : null;
 }
 
-/* ---------- upcoming releases ---------- */
-
 export async function fetchUpcomingReleases(): Promise<UpcomingRelease[]> {
   const url = `${BASE}/release/ajax-upcoming/json/1?sEcho=1&iDisplayStart=0&iDisplayLength=20`;
-  const raw = await fetchWithCache(url, TTL_6H);
-  const json = JSON.parse(raw);
+  const raw = await fetchWithCache(url, TTL_LIVE);
+  let json: any;
+  try { json = JSON.parse(raw); } catch { return []; }
   const rows: any[] = json.aaData ?? [];
 
   return rows.flatMap((r) => {
@@ -78,15 +70,12 @@ export async function fetchUpcomingReleases(): Promise<UpcomingRelease[]> {
   });
 }
 
-/* ---------- latest additions ---------- */
-
 export async function fetchLatestAdditions(): Promise<{ bands: LatestBand[]; labels: LatestLabel[] }> {
   const [homepageRaw, labelsRaw] = await Promise.all([
-    fetchWithCache(`${BASE}/`, TTL_30M),
-    fetchWithCache(`${BASE}/index/latest-labels`, TTL_30M),
+    fetchWithCache(`${BASE}/`, TTL_LIVE),
+    fetchWithCache(`${BASE}/index/latest-labels`, TTL_LIVE),
   ]);
 
-  // Parse latest bands from homepage #additionBands table
   const $home = load(homepageRaw);
   const bands: LatestBand[] = [];
   $home("#additionBands table tr").each((_, row) => {
@@ -99,7 +88,6 @@ export async function fetchLatestAdditions(): Promise<{ bands: LatestBand[]; lab
     if (id && name) bands.push({ id, name, addedAt, logo: buildLogoUrl(id) });
   });
 
-  // Parse latest labels from /index/latest-labels table
   const $labels = load(labelsRaw);
   const labels: LatestLabel[] = [];
   $labels("table tr").each((_, row) => {
@@ -115,8 +103,6 @@ export async function fetchLatestAdditions(): Promise<{ bands: LatestBand[]; lab
   return { bands: bands.slice(0, 20), labels: labels.slice(0, 20) };
 }
 
-/* ---------- bands by country ---------- */
-
 export async function fetchBandsByCountry(
   country: string
 ): Promise<{ total: number; bands: CountryBand[] }> {
@@ -126,8 +112,9 @@ export async function fetchBandsByCountry(
     `&provinceState=&status=&themes=&bandNotes=` +
     `&iDisplayStart=0&iDisplayLength=200&sEcho=1`;
 
-  const raw = await fetchWithCache(url, TTL_24H);
-  const json = JSON.parse(raw);
+  const raw = await fetchWithCache(url, TTL_FOREVER);
+  let json: any;
+  try { json = JSON.parse(raw); } catch { return { total: 0, bands: [] }; }
   const total: number = json.iTotalRecords ?? 0;
   const rows: any[] = json.aaData ?? [];
 

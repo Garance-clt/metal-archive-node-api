@@ -1,7 +1,6 @@
 // parsers/labelParser.ts
 import { load } from "cheerio";
 import { buildImageUrl } from "../utils/buildImageUrl.js";
-/* ---------- helpers ---------- */
 function pickAnchor(html) {
     const $ = load(html);
     const a = $("a[href]").first();
@@ -22,7 +21,6 @@ function tryLabelLogo(id) {
         }
     }
 }
-/* ---------- label page ---------- */
 export function parseLabel(html, id) {
     const $ = load(html);
     const name = $("h1.label_name").text().trim();
@@ -90,7 +88,6 @@ export function parseLabel(html, id) {
         notesReadMoreUrl,
     };
 }
-/* ---------- roster ---------- */
 export function parseLabelRoster(rows) {
     return rows.flatMap((r) => {
         const a = pickAnchor(r[0]);
@@ -104,7 +101,6 @@ export function parseLabelRoster(rows) {
             }];
     });
 }
-/* ---------- releases ---------- */
 export function parseLabelReleases(rows) {
     return rows.flatMap((r) => {
         const bandAnchor = pickAnchor(r[0] ?? "");

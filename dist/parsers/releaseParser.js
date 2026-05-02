@@ -174,7 +174,10 @@ export async function attachLyricsToTracks(tracks, fetcher, opts = {}) {
             }
         }
     }));
-    await Promise.allSettled(tasks);
+    const results = await Promise.allSettled(tasks);
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed > 0)
+        console.warn(`[releaseParser] ${failed}/${tasks.length} lyrics tasks failed`);
 }
 function parseLineupTables($) {
     const candidates = [
@@ -189,7 +192,6 @@ function parseLineupTables($) {
         const found = $(sel);
         if (found.length) {
             tables = found;
-            console.log("[lineup] tables trouvées avec le sélecteur", sel, ":", found.length);
             break;
         }
     }
@@ -197,7 +199,6 @@ function parseLineupTables($) {
     const staff = [];
     const guest = [];
     if (!tables || !tables.length) {
-        console.log("[lineup] aucune table trouvée");
         return { band, staff };
     }
     tables.each((_, el) => {
@@ -258,7 +259,7 @@ function parseLineupTables($) {
             }
         });
     });
-    console.log("[lineup] total band :", band.length, "total staff :", staff.length, "total guest :", guest.length);
+    console.debug("[lineup] total band :", band.length, "total staff :", staff.length, "total guest :", guest.length);
     return { band, staff, guest };
 }
 function parseReviews($) {

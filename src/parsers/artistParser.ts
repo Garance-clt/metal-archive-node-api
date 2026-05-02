@@ -5,7 +5,7 @@ import type { Artist } from "../models/Artist.js";
 import { buildCoverUrl } from "../utils/buildCoverUrl.js";
 import type { StatusCode } from "hono/utils/http-status";
 import type { AnyNode } from "domhandler";
-/* -------------------- Helpers généraux -------------------- */
+
 function stripOrdinals(s: string) {
   return s.replace(/\b(\d+)(st|nd|rd|th)\b/gi, "$1");
 }
@@ -26,28 +26,23 @@ function cleanRoleToken(txt: string) {
     .trim();
 }
 
-/** Transforme un fragment HTML en texte pur, sans emails, sans liens */
+// strips Cloudflare-obfuscated emails, mailto links, converts <br>/<a> to plain text
 function htmlToPlainText(rawHtml: string): string {
   const $ = load(`<div id="root">${rawHtml}</div>`);
   const $root = $("#root");
 
-  // 1) Supprime emails (Cloudflare + mailto:)
+  // Cloudflare obfuscates emails; also strip mailto: anchors
   $root.find("span.__cf_email__").remove();
   $root.find('a[href^="mailto:"]').remove();
 
-  // 2) <a> -> texte
   $root.find("a").each((_, el) => {
     const a = $(el);
     a.replaceWith(a.text());
   });
 
-  // 3) <br> -> \n
   $root.find("br").replaceWith("\n");
-
-  // 4) vire les toolstrips/boutons
   $root.find(".tool_strip, .btn_read_more").remove();
 
-  // 5) texte + normalisation
   let text = $root.text();
   text = text
     .replace(/\u00a0/g, " ")
@@ -56,7 +51,7 @@ function htmlToPlainText(rawHtml: string): string {
     .replace(/[ \t]{2,}/g, " ")
     .trim();
 
-  // 6) pas d’emails ni "Contact:" orphelin
+  // filter out stray email lines and orphaned "Contact:" headings
   const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
   const filtered = text
     .split("\n")
@@ -66,7 +61,6 @@ function htmlToPlainText(rawHtml: string): string {
   return filtered.join("\n").trim();
 }
 
-/* -------------------- Read-more (endpoint AJAX) -------------------- */
 export function parseArtistReadMore(html: string): string {
   const $ = load(html);
   $('a[href^="mailto:"]').remove();
@@ -90,7 +84,6 @@ export function parseArtistReadMore(html: string): string {
   return filtered.join("\n").trim();
 }
 
-/* -------------------- Extraction des sections Bio/Trivia -------------------- */
 function grabSectionTextAndReadMore(
   $: CheerioAPI,
   title: "Biography" | "Trivia"
@@ -135,7 +128,6 @@ function grabSectionTextAndReadMore(
   return { text, readMoreUrl };
 }
 
-/* -------------------- Bands/contributions -------------------- */
 
 const TRACK_RANGE_RE = /\btracks?\s+(\d+)(?:\s*-\s*(\d+))?/i;
 const SINGLE_TRACK_RE = /\btrack\s+(\d+)\b/i;
@@ -230,7 +222,6 @@ function extractContributionsForBandBlock(
   return list;
 }
 
-/* -------------------- Parser principal artiste -------------------- */
 
 export function parseArtist(html: string, id: string): Artist {
   const $ = load(html);

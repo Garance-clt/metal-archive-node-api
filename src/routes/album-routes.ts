@@ -49,8 +49,7 @@ router.get("/albums/:id", async (c) => {
   }
 });
 
-/** Redirect to the verified cover image URL (tries jpg/jpeg/png/gif, then HTML scrape).
- *  Cached 24h. React Native Image follows the redirect automatically. */
+// redirects to the verified cover URL (tries jpg/jpeg/png/gif, then HTML scrape); cached 24h
 router.get("/albums/:id/cover", async (c) => {
   const id = c.req.param("id");
   if (!/^\d+$/.test(id)) return c.text("Invalid id", 400);

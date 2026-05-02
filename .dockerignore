@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.*
+logs/
+*.log
+.git/
+.gitignore
+README.md
+ecosystem.config.cjs
+deploy.sh
+.github/

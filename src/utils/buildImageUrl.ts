@@ -4,12 +4,7 @@ import { BASE_URL } from "./constants.js";
 const VALID_EXTS = ["jpg", "jpeg", "png", "gif"] as const;
 type Ext = (typeof VALID_EXTS)[number];
 
-/**
- * Construit une URL d'image Metal-Archives.
- * @param id      ID numérique de la ressource
- * @param suffix  Suffixe du fichier (ex: "_logo", "_artist", ou "" pour une pochette)
- * @param ext     Extension (défaut : "jpg")
- */
+// ex. '987654' → '9/8/7/6/987654_logo.jpg'
 export function buildImageUrl(
   id: string | number,
   suffix: string,

@@ -296,7 +296,9 @@ export async function attachLyricsToTracks(
       })
     );
 
-  await Promise.allSettled(tasks);
+  const results = await Promise.allSettled(tasks);
+  const failed = results.filter((r) => r.status === "rejected").length;
+  if (failed > 0) console.warn(`[releaseParser] ${failed}/${tasks.length} lyrics tasks failed`);
 }
 
 function parseLineupTables($: CheerioAPI) {
@@ -313,12 +315,6 @@ function parseLineupTables($: CheerioAPI) {
     const found = $(sel);
     if (found.length) {
       tables = found;
-      console.log(
-        "[lineup] tables trouvées avec le sélecteur",
-        sel,
-        ":",
-        found.length
-      );
       break;
     }
   }
@@ -327,7 +323,6 @@ function parseLineupTables($: CheerioAPI) {
   const staff: LineupMember[] = [];
   const guest: LineupMember[] = [];
   if (!tables || !tables.length) {
-    console.log("[lineup] aucune table trouvée");
     return { band, staff };
   }
 
@@ -396,7 +391,7 @@ function parseLineupTables($: CheerioAPI) {
     });
   });
 
-  console.log(
+  console.debug(
     "[lineup] total band :",
     band.length,
     "total staff :",

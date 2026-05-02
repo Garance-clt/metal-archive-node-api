@@ -89,7 +89,6 @@ export function parseBand(html: string, id: string): Band {
   };
 }
 
-/* -------- Discographie (résumé) -------- */
 function parseDiscog($: CheerioAPI): ReleaseSummary[] {
   return $("div#band_tab_discography table.discog tbody tr")
     .map((_, tr) => {
@@ -201,7 +200,6 @@ function parseMembers($: CheerioAPI): Member[] {
   return members;
 }
 
-/* -------- Groupes similaires -------- */
 
 export type SimilarBand = {
   id: string;
@@ -229,7 +227,6 @@ export function parseBandSimilar(html: string): SimilarBand[] {
   return results;
 }
 
-/* -------- Liens du groupe -------- */
 
 export type BandLink = {
   id: string;

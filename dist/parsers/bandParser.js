@@ -77,7 +77,6 @@ export function parseBand(html, id) {
         biographyReadMoreUrl,
     };
 }
-/* -------- Discographie (résumé) -------- */
 function parseDiscog($) {
     return $("div#band_tab_discography table.discog tbody tr")
         .map((_, tr) => {

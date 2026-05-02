@@ -1,7 +1,6 @@
 /* parsers/artistParser.ts */
 import { load } from "cheerio";
 import { buildCoverUrl } from "../utils/buildCoverUrl.js";
-/* -------------------- Helpers généraux -------------------- */
 function stripOrdinals(s) {
     return s.replace(/\b(\d+)(st|nd|rd|th)\b/gi, "$1");
 }
@@ -20,23 +19,19 @@ function cleanRoleToken(txt) {
         .replace(/\s+/g, " ")
         .trim();
 }
-/** Transforme un fragment HTML en texte pur, sans emails, sans liens */
+// strips Cloudflare-obfuscated emails, mailto links, converts <br>/<a> to plain text
 function htmlToPlainText(rawHtml) {
     const $ = load(`<div id="root">${rawHtml}</div>`);
     const $root = $("#root");
-    // 1) Supprime emails (Cloudflare + mailto:)
+    // Cloudflare obfuscates emails; also strip mailto: anchors
     $root.find("span.__cf_email__").remove();
     $root.find('a[href^="mailto:"]').remove();
-    // 2) <a> -> texte
     $root.find("a").each((_, el) => {
         const a = $(el);
         a.replaceWith(a.text());
     });
-    // 3) <br> -> \n
     $root.find("br").replaceWith("\n");
-    // 4) vire les toolstrips/boutons
     $root.find(".tool_strip, .btn_read_more").remove();
-    // 5) texte + normalisation
     let text = $root.text();
     text = text
         .replace(/\u00a0/g, " ")
@@ -44,7 +39,7 @@ function htmlToPlainText(rawHtml) {
         .replace(/\n{3,}/g, "\n\n")
         .replace(/[ \t]{2,}/g, " ")
         .trim();
-    // 6) pas d’emails ni "Contact:" orphelin
+    // filter out stray email lines and orphaned "Contact:" headings
     const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
     const filtered = text
         .split("\n")
@@ -52,7 +47,6 @@ function htmlToPlainText(rawHtml) {
         .filter((l) => !EMAIL_RE.test(l) && !/^contact\s*:?\s*$/i.test(l));
     return filtered.join("\n").trim();
 }
-/* -------------------- Read-more (endpoint AJAX) -------------------- */
 export function parseArtistReadMore(html) {
     const $ = load(html);
     $('a[href^="mailto:"]').remove();
@@ -72,7 +66,6 @@ export function parseArtistReadMore(html) {
         .filter((l) => !EMAIL_RE.test(l) && !/^contact\s*:?\s*$/i.test(l));
     return filtered.join("\n").trim();
 }
-/* -------------------- Extraction des sections Bio/Trivia -------------------- */
 function grabSectionTextAndReadMore($, title) {
     const $scope = $("#member_info .band_comment");
     const $h2 = $scope.find(`h2.title_comment:contains("${title}")`).first();
@@ -106,7 +99,6 @@ function grabSectionTextAndReadMore($, title) {
     const text = html ? htmlToPlainText(html) : null;
     return { text, readMoreUrl };
 }
-/* -------------------- Bands/contributions -------------------- */
 const TRACK_RANGE_RE = /\btracks?\s+(\d+)(?:\s*-\s*(\d+))?/i;
 const SINGLE_TRACK_RE = /\btrack\s+(\d+)\b/i;
 function getBandId($scope, el) {
@@ -169,7 +161,6 @@ function extractContributionsForBandBlock($scope, $block) {
     });
     return list;
 }
-/* -------------------- Parser principal artiste -------------------- */
 export function parseArtist(html, id) {
     const $ = load(html);
     const pick = (label) => $(`dt:contains("${label}")`).next("dd").text().trim() || null;

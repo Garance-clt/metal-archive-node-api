@@ -1,13 +1,9 @@
-// services/homeFetch.ts
 import { fetchWithCache } from "./fetchWithCache.js";
 import { load } from "cheerio";
 import { buildLogoUrl } from "../utils/buildLogoUrl.js";
 import { buildLabelLogoUrl } from "../utils/buildLabelLogoUrl.js";
+import { TTL_FOREVER, TTL_LIVE } from "../utils/constants.js";
 const BASE = "https://www.metal-archives.com";
-const TTL_6H = 6 * 60 * 60_000;
-const TTL_24H = 24 * 60 * 60_000;
-const TTL_30M = 30 * 60_000;
-/* ---------- helpers ---------- */
 function parseAnchor(html) {
     const $ = load(html);
     const a = $("a[href]").first();
@@ -15,11 +11,16 @@ function parseAnchor(html) {
     const id = href.match(/\/(\d+)(?:[^0-9]|$)/)?.[1] ?? null;
     return id ? { id, name: a.text().trim() } : null;
 }
-/* ---------- upcoming releases ---------- */
 export async function fetchUpcomingReleases() {
     const url = `${BASE}/release/ajax-upcoming/json/1?sEcho=1&iDisplayStart=0&iDisplayLength=20`;
-    const raw = await fetchWithCache(url, TTL_6H);
-    const json = JSON.parse(raw);
+    const raw = await fetchWithCache(url, TTL_LIVE);
+    let json;
+    try {
+        json = JSON.parse(raw);
+    }
+    catch {
+        return [];
+    }
     const rows = json.aaData ?? [];
     return rows.flatMap((r) => {
         const band = parseAnchor(r[0] ?? "");
@@ -37,13 +38,11 @@ export async function fetchUpcomingReleases() {
             }];
     });
 }
-/* ---------- latest additions ---------- */
 export async function fetchLatestAdditions() {
     const [homepageRaw, labelsRaw] = await Promise.all([
-        fetchWithCache(`${BASE}/`, TTL_30M),
-        fetchWithCache(`${BASE}/index/latest-labels`, TTL_30M),
+        fetchWithCache(`${BASE}/`, TTL_LIVE),
+        fetchWithCache(`${BASE}/index/latest-labels`, TTL_LIVE),
     ]);
-    // Parse latest bands from homepage #additionBands table
     const $home = load(homepageRaw);
     const bands = [];
     $home("#additionBands table tr").each((_, row) => {
@@ -56,7 +55,6 @@ export async function fetchLatestAdditions() {
         if (id && name)
             bands.push({ id, name, addedAt, logo: buildLogoUrl(id) });
     });
-    // Parse latest labels from /index/latest-labels table
     const $labels = load(labelsRaw);
     const labels = [];
     $labels("table tr").each((_, row) => {
@@ -71,14 +69,19 @@ export async function fetchLatestAdditions() {
     });
     return { bands: bands.slice(0, 20), labels: labels.slice(0, 20) };
 }
-/* ---------- bands by country ---------- */
 export async function fetchBandsByCountry(country) {
     const url = `${BASE}/search/ajax-advanced/searching/bands/` +
         `?bandName=&genre=&country=${encodeURIComponent(country)}` +
         `&provinceState=&status=&themes=&bandNotes=` +
         `&iDisplayStart=0&iDisplayLength=200&sEcho=1`;
-    const raw = await fetchWithCache(url, TTL_24H);
-    const json = JSON.parse(raw);
+    const raw = await fetchWithCache(url, TTL_FOREVER);
+    let json;
+    try {
+        json = JSON.parse(raw);
+    }
+    catch {
+        return { total: 0, bands: [] };
+    }
     const total = json.iTotalRecords ?? 0;
     const rows = json.aaData ?? [];
     const bands = rows.flatMap((r) => {

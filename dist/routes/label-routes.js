@@ -3,7 +3,6 @@ import { Hono } from "hono";
 import { fetchLabelHtml, fetchLabelRoster, fetchLabelPastRoster, fetchLabelReleases, } from "../services/labelFetch.js";
 import { parseLabel, parseLabelRoster, parseLabelReleases, } from "../parsers/labelParser.js";
 const router = new Hono();
-/* -------- info label -------- */
 router.get("/label/:id", async (c) => {
     const id = c.req.param("id");
     if (!/^\d+$/.test(id))
@@ -16,7 +15,6 @@ router.get("/label/:id", async (c) => {
         return c.json({ error: e.message }, 502);
     }
 });
-/* -------- roster actuel + passé -------- */
 router.get("/label/:id/roster", async (c) => {
     const id = c.req.param("id");
     if (!/^\d+$/.test(id))
@@ -36,7 +34,6 @@ router.get("/label/:id/roster", async (c) => {
         return c.json({ error: e.message }, 502);
     }
 });
-/* -------- releases -------- */
 router.get("/label/:id/releases", async (c) => {
     const id = c.req.param("id");
     if (!/^\d+$/.test(id))

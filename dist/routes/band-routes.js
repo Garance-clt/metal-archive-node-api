@@ -4,7 +4,6 @@ import { parseBand, parseBiographyReadMore, parseBandSimilar, parseBandLinks, } 
 import { fetchDiscog, TABS } from "../services/discogFetch.js";
 import { curlFetch } from "../utils/curlFetch.js";
 const router = new Hono();
-/* -------- infos + discog main (résumé) -------- */
 router.get("/band/:id", async (c) => {
     const id = c.req.param("id");
     if (!/^\d+$/.test(id))
@@ -17,7 +16,6 @@ router.get("/band/:id", async (c) => {
         return c.json({ error: e.message }, 502);
     }
 });
-/* -------- lazy : autres onglets discographie -------- */
 router.get("/band/:id/discog", async (c) => {
     const id = c.req.param("id");
     if (!/^\d+$/.test(id))
@@ -46,7 +44,6 @@ router.get("/band/read-more/id/:id", async (c) => {
         return c.text(e.message, 502);
     }
 });
-/* -------- groupes similaires -------- */
 router.get("/band/:id/similar", async (c) => {
     const id = c.req.param("id");
     if (!/^\d+$/.test(id))
@@ -59,7 +56,6 @@ router.get("/band/:id/similar", async (c) => {
         return c.json({ error: e.message }, 502);
     }
 });
-/* -------- liens du groupe -------- */
 router.get("/band/:id/links", async (c) => {
     const id = c.req.param("id");
     if (!/^\d+$/.test(id))

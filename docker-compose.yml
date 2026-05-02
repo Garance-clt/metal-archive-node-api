@@ -1,0 +1,20 @@
+services:
+  api:
+    image: ghcr.io/garance-clt/metal-archive-node-api:latest
+    container_name: metallum-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.metallum-api.rule=Host(`your-api-domain.com`)"
+      - "traefik.http.routers.metallum-api.entrypoints=websecure"
+      - "traefik.http.routers.metallum-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.metallum-api.loadbalancer.server.port=3000"
+
+networks:
+  traefik-public:
+    external: true

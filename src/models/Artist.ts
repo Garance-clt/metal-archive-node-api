@@ -2,8 +2,8 @@ export type BandStatus = "current" | "past" | "live" | "guest" | "misc";
 
 export type ContributionTrack = {
   trackNo?: number | null;
-  title: string; // peut rester "" si inconnu (fallback)
-  role?: string | null; // ex: "vocals (lead)"
+  title: string; // may be "" if unknown (fallback)
+  role?: string | null;
 };
 
 export type BandContribution = {
@@ -11,7 +11,7 @@ export type BandContribution = {
   title: string; // titre de l’album/sortie
   year: number | null;
   type: string | null; // Album, EP, Single, Live, ...
-  cover: string | null; // peut être null: frontend a un fallback
+  cover: string | null; // null = frontend has a fallback
   roleSummary: string | null; // ex: "Vocals (tracks 1-3)"
   tracks: ContributionTrack[];
 };
@@ -37,10 +37,8 @@ export interface Artist {
   triviaReadMoreUrl?: string | null;
   triviaHtml?: string | null;
 
-  /** Aliases/pseudos éventuels */
   aliases: string[];
 
-  /** Groupes et rôles */
   bands: {
     bandId: string;
     bandName: string;
@@ -49,10 +47,8 @@ export interface Artist {
     status: BandStatus;
     years: string;
 
-    /** Ex: "As Nick Royale" si dispo dans la page */
-    aliasContext?: string | null;
+    aliasContext?: string | null; // e.g. "As Nick Royale" when listed under alias
 
-    /** Contributions de l'artiste dans ce groupe (albums/pistes) */
     contributions?: BandContribution[];
   }[];
 }

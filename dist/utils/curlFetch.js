@@ -1,7 +1,10 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
+import pLimit from "p-limit";
 import { APP_USER_AGENT } from "./constants.js";
 const execFileAsync = promisify(execFile);
+// Cap concurrent curl processes to avoid resource exhaustion
+const curlLimit = pLimit(12);
 const CURL_HEADERS = [
     `User-Agent: ${APP_USER_AGENT}`,
     "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -23,20 +26,12 @@ function validateUrl(url) {
         throw new Error("URL not allowed: only metal-archives.com is permitted");
     }
 }
-/**
- * Effectue une requête GET via curl et retourne le body en string.
- * Lève une erreur si le status HTTP >= 400.
- */
 export async function curlFetch(url) {
     const { body, status } = await curlRequest(url);
     if (status >= 400)
         throw new Error(`Upstream status ${status}`);
     return body;
 }
-/**
- * Adaptateur compatible avec l'interface fetch() standard.
- * Utilisé pour passer curlFetch là où un fetcher(url, init?) est attendu.
- */
 export async function curlFetchResponse(url, _init) {
     const { body, status } = await curlRequest(url);
     return {
@@ -47,15 +42,14 @@ export async function curlFetchResponse(url, _init) {
 }
 async function curlRequest(url) {
     validateUrl(url);
-    const { stdout } = await execFileAsync("curl", ["-s", "-L", "--max-time", "30", "--write-out", "\n__STATUS__%{http_code}", ...HEADER_ARGS_ARRAY, url], { maxBuffer: 10 * 1024 * 1024 });
-    const sep = stdout.lastIndexOf("\n__STATUS__");
-    const body = sep !== -1 ? stdout.slice(0, sep) : stdout;
-    const status = sep !== -1 ? parseInt(stdout.slice(sep + 11), 10) : 200;
-    return { body, status };
+    return curlLimit(async () => {
+        const { stdout } = await execFileAsync("curl", ["-s", "-L", "--max-time", "30", "--write-out", "\n__STATUS__%{http_code}", ...HEADER_ARGS_ARRAY, url], { maxBuffer: 10 * 1024 * 1024 });
+        const sep = stdout.lastIndexOf("\n__STATUS__");
+        const body = sep !== -1 ? stdout.slice(0, sep) : stdout;
+        const status = sep !== -1 ? parseInt(stdout.slice(sep + 11), 10) : 200;
+        return { body, status };
+    });
 }
-/**
- * Follows redirects and returns the final effective URL after all redirects.
- */
 export async function curlGetRedirectUrl(url) {
     validateUrl(url);
     const { stdout } = await execFileAsync("curl", [

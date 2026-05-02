@@ -1,23 +1,23 @@
 // services/bandFetch.ts
 import { fetchWithCache } from "./fetchWithCache.js";
+import { TTL_FOREVER } from "../utils/constants.js";
 
-const TTL = 60 * 60 * 1000; // 1 h
 const BASE = "https://www.metal-archives.com";
 
 export function fetchBandHtml(id: string): Promise<string> {
-  return fetchWithCache(`${BASE}/bands/_/${id}`, TTL);
+  return fetchWithCache(`${BASE}/bands/_/${id}`, TTL_FOREVER);
 }
 
 export function fetchBandSimilar(id: string): Promise<string> {
   return fetchWithCache(
     `${BASE}/band/ajax-recommendations/id/${id}`,
-    TTL
+    TTL_FOREVER
   );
 }
 
 export function fetchBandLinks(id: string): Promise<string> {
   return fetchWithCache(
     `${BASE}/link/ajax-list/type/band/id/${id}`,
-    TTL
+    TTL_FOREVER
   );
 }

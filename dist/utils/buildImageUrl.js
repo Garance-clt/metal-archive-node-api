@@ -1,12 +1,7 @@
 // utils/buildImageUrl.ts
 import { BASE_URL } from "./constants.js";
 const VALID_EXTS = ["jpg", "jpeg", "png", "gif"];
-/**
- * Construit une URL d'image Metal-Archives.
- * @param id      ID numérique de la ressource
- * @param suffix  Suffixe du fichier (ex: "_logo", "_artist", ou "" pour une pochette)
- * @param ext     Extension (défaut : "jpg")
- */
+// ex. '987654' → '9/8/7/6/987654_logo.jpg'
 export function buildImageUrl(id, suffix, ext = "jpg") {
     const idStr = String(id);
     if (!/^\d+$/.test(idStr))
