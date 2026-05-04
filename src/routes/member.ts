@@ -16,7 +16,7 @@ router.get("/member/:id", async (c) => {
     const artist = parseArtist(html, id);
     return c.json(artist);
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -31,7 +31,7 @@ router.get("/artist/read-more/id/:id", async (c) => {
     );
     return c.text(parseArtistReadMore(html));
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 

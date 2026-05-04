@@ -26,7 +26,7 @@ function validateUrl(url: string): void {
   } catch {
     throw new Error("Invalid URL format");
   }
-  if (!parsed.hostname.endsWith("metal-archives.com")) {
+  if (parsed.hostname !== "www.metal-archives.com" && parsed.hostname !== "metal-archives.com") {
     throw new Error("URL not allowed: only metal-archives.com is permitted");
   }
 }

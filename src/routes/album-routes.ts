@@ -45,7 +45,7 @@ router.get("/albums/:id", async (c) => {
 
     return c.json(album);
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 

@@ -18,7 +18,7 @@ router.get("/search/bands", async (c) => {
   try {
     return c.json({ bands: await searchBands(q) });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -28,7 +28,7 @@ router.get("/search/artists", async (c) => {
   try {
     return c.json({ artists: await searchArtists(q) });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -38,7 +38,7 @@ router.get("/search/albums", async (c) => {
   try {
     return c.json({ albums: await searchAlbums(q) });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -48,7 +48,7 @@ router.get("/search/songs", async (c) => {
   try {
     return c.json({ songs: await searchSongs(q) });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -58,7 +58,7 @@ router.get("/search/labels", async (c) => {
   try {
     return c.json({ labels: await searchLabels(q) });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 

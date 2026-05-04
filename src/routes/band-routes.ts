@@ -18,7 +18,7 @@ router.get("/band/:id", async (c) => {
     const band = parseBand(await fetchBandHtml(id), id);
     return c.json(band);
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -35,7 +35,7 @@ router.get("/band/:id/discog", async (c) => {
     const items = await fetchDiscog(id, tab);
     return c.json({ bandId: id, tab, items });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -49,7 +49,7 @@ router.get("/band/read-more/id/:id", async (c) => {
     );
     return c.text(parseBiographyReadMore(html));
   } catch (e: any) {
-    return c.text(e.message, 502);
+    console.error("[route]", e); return c.text("Upstream error", 502);
   }
 });
 
@@ -60,7 +60,7 @@ router.get("/band/:id/similar", async (c) => {
     const html = await fetchBandSimilar(id);
     return c.json({ similar: parseBandSimilar(html) });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -71,7 +71,7 @@ router.get("/band/:id/links", async (c) => {
     const html = await fetchBandLinks(id);
     return c.json({ links: parseBandLinks(html) });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 

@@ -6,7 +6,12 @@ import { THROTTLE_MS, TTL_FOREVER } from "../utils/constants.js";
 
 let lastFetch = 0;
 
-const RETRY_DELAYS = [1500, 4000, 8000]; // délais entre retries en ms
+const RETRY_DELAYS = [1500, 4000, 8000];
+
+// In-flight requests: if the same URL is already being fetched, return the
+// same promise instead of launching a duplicate curl. This means 100 users
+// hitting the same uncached page simultaneously only generate 1 request to MA.
+const inFlight = new Map<string, Promise<string>>();
 
 // uses curl to bypass Cloudflare TLS fingerprinting; cache + throttle + retry on 5xx
 export async function fetchWithCache(
@@ -16,6 +21,16 @@ export async function fetchWithCache(
   const cached = cache.get(url);
   if (cached) return cached;
 
+  // Coalesce concurrent requests for the same URL
+  const existing = inFlight.get(url);
+  if (existing) return existing;
+
+  const promise = _fetch(url, ttl).finally(() => inFlight.delete(url));
+  inFlight.set(url, promise);
+  return promise;
+}
+
+async function _fetch(url: string, ttl: number): Promise<string> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
@@ -33,13 +48,12 @@ export async function fetchWithCache(
 
     lastError = new Error(`Upstream status ${res.status}`);
 
-    // Retry uniquement sur les erreurs 5xx (transitoires)
     if (res.status < 500 || attempt >= RETRY_DELAYS.length) break;
 
     const delay = RETRY_DELAYS[attempt];
-    console.warn(`[fetchWithCache] ${res.status} sur ${url} — retry dans ${delay}ms (tentative ${attempt + 1}/${RETRY_DELAYS.length})`);
+    console.warn(`[fetchWithCache] ${res.status} — retry in ${delay}ms (attempt ${attempt + 1}/${RETRY_DELAYS.length})`);
     await sleep(delay);
   }
 
-  throw lastError ?? new Error("Erreur inconnue");
+  throw lastError ?? new Error("Unknown error");
 }

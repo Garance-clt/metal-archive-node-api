@@ -21,7 +21,7 @@ router.get("/label/:id", async (c) => {
     const html = await fetchLabelHtml(id);
     return c.json(parseLabel(html, id));
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -39,7 +39,7 @@ router.get("/label/:id/roster", async (c) => {
       past: includePast ? parseLabelRoster(pastRows) : undefined,
     });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -50,7 +50,7 @@ router.get("/label/:id/releases", async (c) => {
     const rows = await fetchLabelReleases(id);
     return c.json({ releases: parseLabelReleases(rows) });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 

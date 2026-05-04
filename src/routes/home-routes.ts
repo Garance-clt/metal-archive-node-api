@@ -10,7 +10,7 @@ router.get("/home/upcoming", async (c) => {
     const releases = await fetchUpcomingReleases();
     return c.json({ releases });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -26,7 +26,7 @@ router.get("/home/random-band", async (c) => {
     }
     return c.json({ id: match[1] });
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -39,7 +39,7 @@ router.get("/home/bands-by-country", async (c) => {
     const result = await fetchBandsByCountry(country);
     return c.json(result);
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
@@ -48,7 +48,7 @@ router.get("/home/latest", async (c) => {
     const data = await fetchLatestAdditions();
     return c.json(data);
   } catch (e: any) {
-    return c.json({ error: e.message }, 502);
+    console.error("[route]", e); return c.json({ error: "Upstream error" }, 502);
   }
 });
 
